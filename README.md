@@ -4,7 +4,7 @@ A native Python/Qt application for taking screenshots, highlighting details, dra
 
 ## Run
 
-Target: Ubuntu 24.04 or newer, Python 3.12+, GNOME on Wayland or X11. Automated testing currently uses Ubuntu 25.10 / Python 3.13. Real desktop capture and multi-monitor compatibility must be verified using [the manual checklist](docs/testing.md); this is version 0.1.2, not a certified production release.
+Target: Ubuntu 24.04 or newer, Python 3.12+, GNOME on Wayland or X11. Automated testing currently uses Ubuntu 25.10 / Python 3.13. Real desktop capture and multi-monitor compatibility must be verified using [the manual checklist](docs/testing.md); this is version 0.1.3.
 
 ```bash
 cd /path/to/snapmark
@@ -16,6 +16,17 @@ python3 -m venv .venv
 Or use `.venv/bin/snapmark`. Open an image with `./run.sh /path/to/image.png`. Start a capture with `./run.sh --capture full`, `--capture region`, or `--capture window`. `--minimized` starts in the tray if the desktop provides one; otherwise the main window remains available.
 
 Python virtual environment support and Qt's system libraries must be present. Ubuntu packages commonly needed are `python3-venv`, `libegl1`, `libgl1`, `libxkbcommon0`, `libxcb-cursor0`, and `libxcb-xinerama0`. Wayland needs a running session bus and a working `xdg-desktop-portal` with its desktop backend (normally `xdg-desktop-portal-gnome` on Ubuntu). Installing OS dependencies may require administrator access; running SnapMark does not.
+
+## Ubuntu installer
+
+The bundled **0.1.3 .deb targets Ubuntu 25.10 x86-64**, the build host. It includes Python, Qt, and the application dependencies; no development environment is needed. Older Ubuntu releases need a separate build on the oldest supported system.
+
+```bash
+sudo apt install ./dist/snapmark_0.1.3_amd64.deb
+snapmark
+```
+
+Or launch **SnapMark** from the applications menu. See [packaging](packaging/README.md) for rebuilding, checksums, and removal.
 
 ## Everyday use
 

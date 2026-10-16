@@ -87,3 +87,17 @@ def test_rename_preserves_settings_and_history(app, tmp_path, monkeypatch):
     history.remove("/tmp/previous.png")
     assert history.entries() == []
     assert json.loads((legacy / "history.json").read_text()) == ["/tmp/previous.png"]
+
+
+def test_autostart_uses_frozen_executable_without_python_module(tmp_path, monkeypatch):
+    import sys
+    from cpp.config import set_autostart
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
+    monkeypatch.setattr(sys, "frozen", True, raising=False)
+    monkeypatch.setattr(sys, "executable", "/opt/snapmark/snapmark")
+    set_autostart(True)
+    launcher = tmp_path / "autostart/cpp-screenshot.desktop"
+    assert 'Exec="/opt/snapmark/snapmark" --minimized' in launcher.read_text()
+    assert "-m cpp" not in launcher.read_text()
+    set_autostart(False)
+    assert not launcher.exists()

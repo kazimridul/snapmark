@@ -1,5 +1,14 @@
 # Verification record — 16 October 2026
 
+## Version 0.1.3 Ubuntu installer — 2026-10-16
+
+- Built `dist/snapmark_0.1.3_amd64.deb` on Ubuntu 25.10, Python 3.13, glibc 2.42. Bundles Python/Qt and runtime dependencies; older Ubuntu versions are not supported by this binary.
+- **67 tests pass**, including Wayland v2 window chooser availability, window action/editor handoff, and login startup for the bundled executable.
+- Extracted the .deb into a temporary directory. Its executable reports `SnapMark 0.1.3` and the GUI remained running in the offscreen Qt platform for a four-second smoke test without PYTHONPATH or an active virtual environment.
+- Apt installation simulation resolved dependencies on the build host. No system install was performed. Package metadata inspected and SHA-256 verified.
+- Actual installed desktop launch, interactive capture permissions, real window selection, and cross-application clipboard remain manual checks. This local package has not been published or signed.
+
+
 ## Version 0.1.2 update
 
 - **59 tests pass**, including immediate blur/pixelation on mouse release, pixel restoration through Undo, Escape cancellation of unfinished drags, pen color/size/opacity memory, and editor activation/transient-parent behavior in the offscreen Qt platform, and cancellation of older editor activation timers before capture.

@@ -1,29 +1,51 @@
-# Packaging and installation
+# Ubuntu release packaging
 
-## Python distribution (implemented)
+## Bundled Debian installer
+
+Version 0.1.3 is built for **Ubuntu 25.10, amd64**, with glibc 2.42 or newer. The package includes Python, PySide6/Qt, Pillow, D-Bus bindings, and Xlib under `/opt/snapmark`. It installs `/usr/bin/snapmark`, the applications-menu launcher, and the SVG icon. Apt resolves host display libraries. The host supplies the desktop session and screenshot portal.
+
+Install from the repository root:
 
 ```bash
-.venv/bin/python -m build
-python3 -m venv /tmp/cpp-clean
-/tmp/cpp-clean/bin/python -m pip install dist/snapmark_screenshot-0.1.2-py3-none-any.whl
-/tmp/cpp-clean/bin/snapmark --version
+sudo apt install ./dist/snapmark_0.1.3_amd64.deb
+snapmark
 ```
 
-The wheel contains the application and SVG icon. pip installs its declared Python dependencies; system Qt display libraries and the desktop portal are runtime host requirements, not bundled services. The wheel is platform-neutral Python but its Qt dependencies are platform-specific.
+Choose SnapMark in the applications menu, or run `snapmark --capture region`. On Wayland v2, Select Window opens the system chooser; choose Window there before taking the screenshot.
 
-## Desktop launcher (implemented)
+Validate the downloaded package in its containing directory:
 
-Run `.venv/bin/python tools/install_desktop.py`. It writes only `io.github.snapmark.SnapMark.desktop` and the matching SVG icon under your XDG data directory. It embeds the current interpreter path so the launcher works even if the virtual environment's bin directory is not in PATH. Use `--prefix /tmp/cpp-launcher-check` for a staged installation. Undo with `--uninstall` using the same prefix. The checked-in generic desktop file is suitable for a package whose `snapmark` executable is on PATH.
+```bash
+sha256sum -c snapmark_0.1.3_amd64.deb.sha256
+```
 
-## AppImage build plan (not yet built or validated)
+The checksum detects changes; the package is not signed or published to an apt repository. This build is not certified for older Ubuntu versions. PyInstaller bundles depend on the build host's glibc; build and test on the oldest Ubuntu release you want to support.
 
-1. On a clean Ubuntu 24.04 build VM, install a supported Python/Qt stack and build a one-directory application with PyInstaller. Collect SnapMark's SVG and only required Qt plugins (platforms, Wayland/XCB, imageformats, iconengines). Preserve PySide/Qt licensing notices and allow compliance with LGPL requirements.
-2. Put the runnable application under `AppDir/usr/`, provide `AppRun`, install the desktop file and icon, and use `appimagetool` to create the image. Do not bundle or start a desktop portal daemon; communicate with the host session service.
-3. Test the actual AppImage on clean Ubuntu 24.04 and newer, with Wayland/X11, no development venv, no host screenshot utilities, tray available/unavailable, and image clipboard consumers.
-4. Inspect bundled libraries, architecture/glibc compatibility, and dependency license notices before distributing. Confirm no unwanted QtWebEngine/QtPdf modules are included.
+## Rebuild
 
-This repository does not claim to provide a verified AppImage or .deb. A .deb can later install the wheel into a private application environment, the generic launcher, and the icon, with explicit system-library dependencies. Optional packaging is not needed to run the working source or installable wheel.
+On Ubuntu, install dpkg tooling and create a dedicated Python environment:
 
-## Uninstall
+```bash
+python3 -m venv .venv
+.venv/bin/pip install -e '.[dev]' pyinstaller
+QT_QPA_PLATFORM=offscreen .venv/bin/python -m pytest -q
+.venv/bin/python tools/build_deb.py
+```
 
-Disable Launch at login in Settings, remove the desktop launcher using the installer, and run `python -m pip uninstall snapmark-screenshot` with the installing environment. Removing the project virtual environment then removes its remaining dependencies. Screenshots and XDG settings/history are intentionally preserved; remove those manually only if you want to discard them.
+The build script creates `dist/snapmark_VERSION_ARCH.deb` and its SHA-256 file. Build dependencies must already be installed; building does not install anything on the host. It uses a temporary staging directory and records Python, OS, and dependency versions under `/usr/share/doc/snapmark/build.json`. Dependency license files are included under `/usr/share/doc/snapmark/third-party`. Python/Qt libraries remain shared files in the installed bundle.
+
+For a Python wheel/source distribution instead, run `.venv/bin/python -m build`. For a source-install desktop launcher, run `.venv/bin/python tools/install_desktop.py`.
+
+## Remove
+
+Disable Launch at login in Settings first, then:
+
+```bash
+sudo apt remove snapmark
+```
+
+Saved screenshots and user settings/history are preserved. Source-install launchers can be removed separately with `tools/install_desktop.py --uninstall`.
+
+## Verification limits
+
+See [verification](../docs/verification.md). Real screenshot selection, permissions, clipboard sharing, tray, and multiple displays still need the [manual checks](../docs/testing.md). No AppImage is produced by this build.

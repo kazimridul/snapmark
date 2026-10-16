@@ -110,5 +110,6 @@ def set_autostart(enabled: bool):
     path.parent.mkdir(parents=True, exist_ok=True)
     def quote(value):
         return '"' + value.replace('\\', '\\\\').replace('"', '\\"').replace('`', '\\`').replace('$', '\\$').replace('%', '%%') + '"'
-    contents = "[Desktop Entry]\nType=Application\nName=SnapMark\nExec=" + quote(sys.executable) + " -m cpp --minimized\nTerminal=false\nX-GNOME-Autostart-enabled=true\n"
+    command = quote(sys.executable) + ("" if getattr(sys, "frozen", False) else " -m cpp")
+    contents = "[Desktop Entry]\nType=Application\nName=SnapMark\nExec=" + command + " --minimized\nTerminal=false\nX-GNOME-Autostart-enabled=true\n"
     path.write_text(contents)
