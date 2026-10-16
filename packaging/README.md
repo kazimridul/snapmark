@@ -49,3 +49,23 @@ Saved screenshots and user settings/history are preserved. Source-install launch
 ## Verification limits
 
 See [verification](../docs/verification.md). Real screenshot selection, permissions, clipboard sharing, tray, and multiple displays still need the [manual checks](../docs/testing.md). No AppImage is produced by this build.
+
+
+## GitHub release
+
+**Pushing to `main` automatically builds and publishes a GitHub release** for the version in `pyproject.toml`. The workflow runs tests, builds the Ubuntu 25.10 installer, checks it, uploads the `.deb` and matching checksum, then publishes the release. GitHub creates the `vX.Y.Z` tag at the exact pushed commit. Assets upload to a draft first so a failed upload does not publish an incomplete release.
+
+For each new release:
+
+1. Set the same new version in `pyproject.toml` and `src/cpp/__init__.py`.
+2. Add `docs/releases/vX.Y.Z.md` with the matching version's release notes and update packaging dependency pins if needed.
+3. Commit and push to `main`. Follow **Actions → Release Ubuntu app** for the build result.
+
+The initial version is `v0.1.3`, with [these release notes](../docs/releases/v0.1.3.md). A version that is already published is skipped; pushing more commits does not overwrite its assets. Bump the version for another release. If a pre-existing tag points to a different commit, publication fails rather than attach an installer built from different source. You can also use **Run workflow** on `main` to retry a failed release. No manual tag creation is needed.
+
+To use the already-built local installer instead, create a draft release manually for the tag, paste `docs/releases/v0.1.3.md`, and attach these two files from `dist/`:
+
+- `snapmark_0.1.3_amd64.deb`
+- `snapmark_0.1.3_amd64.deb.sha256`
+
+The local `dist/RELEASE_NOTES.md` is a convenience copy of the release body. Do not commit the binary installer to Git. A workflow rebuild may have a different checksum from the local build; always upload its matching checksum. GitHub supplies source archives automatically for the tag.

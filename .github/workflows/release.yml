@@ -1,0 +1,177 @@
+name: Release Ubuntu app
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-main
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    outputs:
+      tag: ${{ steps.version.outputs.tag }}
+      published: ${{ steps.existing.outputs.published }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Read and verify release version
+        id: version
+        run: |
+          python3 - <<'PYVERSION'
+          import os, pathlib, re, tomllib
+          version = tomllib.loads(pathlib.Path('pyproject.toml').read_text())['project']['version']
+          assert re.fullmatch(r'\d+\.\d+\.\d+', version), 'Use an X.Y.Z release version'
+          assert f'__version__ = "{version}"' in pathlib.Path('src/cpp/__init__.py').read_text()
+          tag = 'v' + version
+          assert pathlib.Path(f'docs/releases/{tag}.md').is_file(), 'Missing release notes'
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
+              output.write(f'tag={tag}\n')
+          PYVERSION
+      - name: Skip versions already published
+        id: existing
+        uses: actions/github-script@v7
+        env:
+          RELEASE_TAG: ${{ steps.version.outputs.tag }}
+        with:
+          script: |
+            const releases = await github.paginate(github.rest.repos.listReleases, {...context.repo, per_page: 100});
+            const release = releases.find(r => r.tag_name === process.env.RELEASE_TAG);
+            const published = Boolean(release && !release.draft);
+            core.setOutput('published', String(published));
+            if (published) core.notice('Version already released. Bump the package version to publish another release.');
+
+  build:
+    needs: prepare
+    if: needs.prepare.outputs.published != 'true'
+
+    runs-on: ubuntu-24.04
+    container: ubuntu:25.10
+    timeout-minutes: 30
+    env:
+      DEBIAN_FRONTEND: noninteractive
+      QT_QPA_PLATFORM: offscreen
+    steps:
+      - name: Install build and display libraries
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends ca-certificates git python3 python3-venv binutils dpkg-dev libegl1 libgl1 libdbus-1-3 libfontconfig1 libfreetype6 libglib2.0-0t64 libx11-6 libx11-xcb1 libxext6 libxrender1 libxi6 libxkbcommon0 libxkbcommon-x11-0 libxcb1 libxcb-cursor0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-randr0 libxcb-render0 libxcb-render-util0 libxcb-shape0 libxcb-shm0 libxcb-sync1 libxcb-xfixes0 libxcb-xinerama0 libxcb-xkb1 libwayland-client0 libwayland-cursor0 libwayland-egl1
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Verify release version
+        env:
+          RELEASE_TAG: ${{ needs.prepare.outputs.tag }}
+        run: |
+          python3 - <<'PY'
+          import os, pathlib, re, tomllib
+          tag = os.environ['RELEASE_TAG']
+          version = tomllib.loads(pathlib.Path('pyproject.toml').read_text())['project']['version']
+          assert re.fullmatch(r'v\d+\.\d+\.\d+', tag), 'Use a vX.Y.Z release tag'
+          assert tag == 'v' + version, 'Tag and package version differ'
+          assert f'__version__ = "{version}"' in pathlib.Path('src/cpp/__init__.py').read_text()
+          assert pathlib.Path(f'docs/releases/{tag}.md').is_file(), 'Missing release notes'
+          PY
+      - name: Install pinned build dependencies
+        run: |
+          python3 -m venv .venv
+          .venv/bin/pip install -r packaging/release-requirements.txt
+          .venv/bin/pip install --no-build-isolation -e '.[dev]'
+      - name: Run tests and build installer
+        run: |
+          .venv/bin/python -m pytest -q
+          .venv/bin/python tools/build_deb.py
+      - name: Validate installer
+        env:
+          RELEASE_TAG: ${{ needs.prepare.outputs.tag }}
+        run: |
+          cd dist
+          sha256sum -c *.deb.sha256
+          dpkg-deb --info *.deb
+          dpkg-deb --extract *.deb /tmp/snapmark-check
+          /tmp/snapmark-check/opt/snapmark/snapmark --version
+          python3 - <<'PYGUI'
+          import os, subprocess
+          env = dict(os.environ, XDG_CONFIG_HOME='/tmp/snapmark-test-config', XDG_DATA_HOME='/tmp/snapmark-test-data')
+          app = subprocess.Popen(['/tmp/snapmark-check/opt/snapmark/snapmark'], cwd='/tmp', env=env)
+          try:
+              code = app.wait(timeout=4)
+              raise SystemExit(f'Unexpected GUI exit: {code}')
+          except subprocess.TimeoutExpired:
+              app.terminate()
+              app.wait(timeout=5)
+          PYGUI
+          apt-get --simulate install ./*.deb
+          cd ..
+          cp "docs/releases/$RELEASE_TAG.md" dist/RELEASE_NOTES.md
+      - uses: actions/upload-artifact@v4
+        with:
+          name: snapmark-${{ needs.prepare.outputs.tag }}-ubuntu-25.10-amd64
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 30
+
+  publish:
+    needs: [prepare, build]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: snapmark-${{ needs.prepare.outputs.tag }}-ubuntu-25.10-amd64
+          path: dist
+      - name: Upload assets and publish release
+        uses: actions/github-script@v7
+        env:
+          RELEASE_TAG: ${{ needs.prepare.outputs.tag }}
+        with:
+          script: |
+            const fs = require('fs');
+            const tag = process.env.RELEASE_TAG;
+            const repo = context.repo;
+            const body = fs.readFileSync('dist/RELEASE_NOTES.md', 'utf8');
+            const version = tag.slice(1);
+            const filenames = [`snapmark_${version}_amd64.deb`, `snapmark_${version}_amd64.deb.sha256`];
+            for (const name of filenames) {
+              if (!fs.statSync(`dist/${name}`).size) throw new Error(`Empty release asset: ${name}`);
+            }
+            // List also finds drafts, so reruns cannot create duplicate drafts.
+            const releases = await github.paginate(github.rest.repos.listReleases, {...repo, per_page: 100});
+            let release = releases.find(r => r.tag_name === tag);
+            if (release && !release.draft) {
+              core.notice('Version already published; leaving it unchanged.');
+              return;
+            }
+            // Never attach this build to a tag pointing at different source.
+            try {
+              let ref = (await github.rest.git.getRef({...repo, ref: `tags/${tag}`})).data.object;
+              while (ref.type === 'tag') ref = (await github.rest.git.getTag({...repo, tag_sha: ref.sha})).data.object;
+              if (ref.type !== 'commit' || ref.sha !== context.sha) throw new Error('Existing release tag points to another commit. Bump the version.');
+            } catch (error) {
+              if (error.status !== 404) throw error;
+            }
+            if (release) {
+              release = (await github.rest.repos.updateRelease({...repo, release_id: release.id, body, name: `SnapMark ${tag}`, draft: true})).data;
+            } else {
+              release = (await github.rest.repos.createRelease({...repo, tag_name: tag, target_commitish: context.sha, name: `SnapMark ${tag}`, body, draft: true, prerelease: false})).data;
+            }
+            const assets = await github.paginate(github.rest.repos.listReleaseAssets, {...repo, release_id: release.id, per_page: 100});
+            for (const name of filenames) {
+              const old = assets.find(a => a.name === name);
+              if (old) await github.rest.repos.deleteReleaseAsset({...repo, asset_id: old.id});
+              const data = fs.readFileSync(`dist/${name}`);
+              await github.rest.repos.uploadReleaseAsset({...repo, release_id: release.id, name, data, headers: {'content-type': 'application/octet-stream', 'content-length': data.length}});
+            }
+            release = (await github.rest.repos.updateRelease({...repo, release_id: release.id, draft: false, make_latest: 'true'})).data;
+            core.notice(`Release published: ${release.html_url}`);
