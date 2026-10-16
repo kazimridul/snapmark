@@ -23,9 +23,10 @@ The checksum detects changes; the package is not signed or published to an apt r
 
 ## Rebuild
 
-On Ubuntu, install dpkg tooling and create a dedicated Python environment:
+On Ubuntu 25.10, install dpkg tooling and Python’s shared library, then create a dedicated Python environment:
 
 ```bash
+sudo apt install python3-venv libpython3.13 binutils dpkg-dev
 python3 -m venv .venv
 .venv/bin/pip install -e '.[dev]' pyinstaller
 QT_QPA_PLATFORM=offscreen .venv/bin/python -m pytest -q

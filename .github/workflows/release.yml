@@ -64,7 +64,7 @@ jobs:
       - name: Install build and display libraries
         run: |
           apt-get update
-          apt-get install -y --no-install-recommends ca-certificates git python3 python3-venv binutils dpkg-dev libegl1 libgl1 libdbus-1-3 libfontconfig1 libfreetype6 libglib2.0-0t64 libx11-6 libx11-xcb1 libxext6 libxrender1 libxi6 libxkbcommon0 libxkbcommon-x11-0 libxcb1 libxcb-cursor0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-randr0 libxcb-render0 libxcb-render-util0 libxcb-shape0 libxcb-shm0 libxcb-sync1 libxcb-xfixes0 libxcb-xinerama0 libxcb-xkb1 libwayland-client0 libwayland-cursor0 libwayland-egl1
+          apt-get install -y --no-install-recommends ca-certificates git python3 python3-venv libpython3.13 binutils dpkg-dev libegl1 libgl1 libdbus-1-3 libfontconfig1 libfreetype6 libglib2.0-0t64 libx11-6 libx11-xcb1 libxext6 libxrender1 libxi6 libxkbcommon0 libxkbcommon-x11-0 libxcb1 libxcb-cursor0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-randr0 libxcb-render0 libxcb-render-util0 libxcb-shape0 libxcb-shm0 libxcb-sync1 libxcb-xfixes0 libxcb-xinerama0 libxcb-xkb1 libwayland-client0 libwayland-cursor0 libwayland-egl1
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.sha }}
@@ -87,6 +87,15 @@ jobs:
           python3 -m venv .venv
           .venv/bin/pip install -r packaging/release-requirements.txt
           .venv/bin/pip install --no-build-isolation -e '.[dev]'
+      - name: Verify Python shared library for PyInstaller
+        run: |
+          .venv/bin/python - <<'PYLIB'
+          from PyInstaller.depend.bindepend import get_python_library_path
+          library = get_python_library_path()
+          if library is None:
+              raise SystemExit('Missing Python shared library. Install libpython3.13 in the Ubuntu build container.')
+          print(f'PyInstaller Python library: {library}')
+          PYLIB
       - name: Run tests and build installer
         run: |
           .venv/bin/python -m pytest -q
