@@ -1,5 +1,12 @@
 # Verification record — 16 October 2026
 
+## Version 0.1.4 editor lifecycle and Print Screen
+
+- **74 tests pass**, including standalone file opening, editor close/process exit, missing-file handling without revealing the main window, shortcut registration and restoration, preservation of later user changes, partial failure rollback, and frozen executable command construction.
+- Print Screen registration is per-user, runs on the first normal launch on Ubuntu GNOME, and stores prior values in `print-screen-backup.json` in the app configuration directory. Settings can restore these values.
+- Source version and release notes updated to 0.1.4 for the automatic release workflow. The 0.1.4 binary has not been built locally; real desktop shortcut delivery and installed application behavior still require manual verification.
+
+
 ## Version 0.1.3 Ubuntu installer — 2026-10-16
 
 - Built `dist/snapmark_0.1.3_amd64.deb` on Ubuntu 25.10, Python 3.13, glibc 2.42. Bundles Python/Qt and runtime dependencies; older Ubuntu versions are not supported by this binary.

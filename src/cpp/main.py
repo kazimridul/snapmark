@@ -29,9 +29,16 @@ def main(argv=None):
     app.setWindowIcon(QIcon(str(Path(__file__).parent / "assets" / "snapmark.svg")))
     settings = Settings.load()
     apply_theme(settings.theme)
-    window = MainWindow(settings)
-    if not ((args.minimized or settings.start_minimized) and window.tray_icon):
+    window = MainWindow(settings, standalone=bool(args.image or args.capture))
+    if not window.standalone and not ((args.minimized or settings.start_minimized) and window.tray_icon):
         window.show()
+    if not window.standalone and settings.print_screen:
+        from cpp.desktop_shortcut import set_print_screen
+        def shortcut_failed(message):
+            logging.warning(message)
+            window.statusBar().showMessage(message, 15000)
+        window.jobs.run(lambda: set_print_screen(True),
+                        lambda _: window.statusBar().showMessage("Print Screen opens SnapMark", 5000), shortcut_failed)
     if args.image:
         QTimer.singleShot(0, lambda: window.open_path(args.image))
     if args.capture:

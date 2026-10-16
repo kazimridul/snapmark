@@ -18,14 +18,14 @@ class SettingsDialog(QDialog):
         layout.addWidget(tabs)
         self.controls = {}
         for title, names in [
-            ("General", ["save_directory", "export_format", "auto_editor", "delay", "theme", "tray", "start_minimized", "launch_at_login"]),
+            ("General", ["save_directory", "export_format", "auto_editor", "delay", "theme", "tray", "start_minimized", "launch_at_login", "print_screen"]),
             ("Editor defaults", ["highlighter_color", "highlighter_opacity", "pen_color", "pen_width", "arrow_color", "arrow_width", "font_size", "blur_strength"])]:
             page = QWidget()
             form = QFormLayout(page)
             form.setSpacing(14)
             tabs.addTab(page, title)
             labels = {"auto_editor": "Open editor after capture", "tray": "Enable system tray (when available)",
-                      "start_minimized": "Start minimized to tray", "launch_at_login": "Launch at login"}
+                      "start_minimized": "Start minimized to tray", "launch_at_login": "Launch at login", "print_screen": "Use SnapMark for Print Screen (GNOME)"}
             for name in names:
                 value = getattr(settings, name)
                 label = labels.get(name, name.replace("_", " ").capitalize())
@@ -73,7 +73,7 @@ class SettingsDialog(QDialog):
         page = QWidget()
         form = QFormLayout(page)
         tabs.addTab(page, "Shortcuts")
-        note = QLabel("These shortcuts work inside SnapMark.\nFor a system shortcut, open Ubuntu Settings → Keyboard → Custom Shortcuts and assign:\nsnapmark --capture region\nUbuntu will report conflicts with its existing shortcuts.")
+        note = QLabel("Use SnapMark for Print Screen in General to register the desktop shortcut.\nTurn it off to restore the previous Print Screen binding.\nThe shortcuts below work inside SnapMark.")
         note.setWordWrap(True)
         form.addRow(note)
         self.shortcuts = {}

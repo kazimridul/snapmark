@@ -16,8 +16,9 @@ from cpp.ui.theme import apply_theme
 
 
 class MainWindow(QMainWindow):
-    def __init__(self, settings):
+    def __init__(self, settings, standalone=False):
         super().__init__()
+        self.standalone = standalone
         self.settings = settings
         self.jobs = Jobs(self)
         self.editors = set()
@@ -140,7 +141,7 @@ class MainWindow(QMainWindow):
             self.tray_icon.hide()
             self.tray_icon.deleteLater()
             self.tray_icon = None
-        if not self.settings.tray or not QSystemTrayIcon.isSystemTrayAvailable():
+        if self.standalone or not self.settings.tray or not QSystemTrayIcon.isSystemTrayAvailable():
             return
         tray = QSystemTrayIcon(QApplication.windowIcon(), self)
         tray.setToolTip("SnapMark — Screenshot & annotate")
@@ -238,6 +239,7 @@ class MainWindow(QMainWindow):
             window.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating, previous)
         self.hidden_windows = []
         self.capabilities_ready(self.caps)
+        QTimer.singleShot(0, self.maybe_quit_standalone)
 
     def cancel_capture(self):
         if not self.capturing:
@@ -298,12 +300,24 @@ class MainWindow(QMainWindow):
         window = EditorWindow(image, self.settings, path, parent=self)
         self.editors.add(window)
         window.saved.connect(self.record_saved)
-        window.closed.connect(self.editors.discard)
+        window.closed.connect(self.editor_closed)
         window.present_after_capture()
         QApplication.alert(window, 3000)
         window.statusBar().showMessage("Screenshot captured — ready to edit" if path is None else "Image opened", 5000)
         self.statusBar().showMessage("Image opened", 3000)
         return window
+
+    def editor_closed(self, window):
+        self.editors.discard(window)
+        QTimer.singleShot(0, self.maybe_quit_standalone)
+
+    def maybe_quit_standalone(self):
+        if not self.standalone or self.editors or self.capturing:
+            return
+        if self.jobs.active:
+            QTimer.singleShot(100, self.maybe_quit_standalone)
+            return
+        QApplication.instance().quit()
 
     def record_saved(self, path):
         try:
@@ -374,6 +388,9 @@ class MainWindow(QMainWindow):
             try:
                 if settings.launch_at_login != self.settings.launch_at_login:
                     set_autostart(settings.launch_at_login)
+                if settings.print_screen != self.settings.print_screen:
+                    from cpp.desktop_shortcut import set_print_screen
+                    set_print_screen(settings.print_screen)
                 settings.save()
             except OSError as exc:
                 self.error("Could not save settings: " + str(exc))
@@ -388,8 +405,10 @@ class MainWindow(QMainWindow):
             self.statusBar().showMessage("Settings saved · editor defaults apply to newly opened editors", 6000)
 
     def error(self, message):
-        self.reveal()
-        QMessageBox.warning(self, "SnapMark", message)
+        if not self.standalone:
+            self.reveal()
+        QMessageBox.warning(None if self.standalone else self, "SnapMark", message)
+        QTimer.singleShot(0, self.maybe_quit_standalone)
 
     def closeEvent(self, event):
         if self.capturing or self.jobs.active:

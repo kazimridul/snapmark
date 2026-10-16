@@ -16,6 +16,6 @@
 
 100 retained undo commands bound command count, not total memory. Destructive pixel edits retain their before/after images; vector edits retain only immutable annotations and shared pixels. A future release can add a byte-budgeted pixel tile cache for repeated edits of huge images.
 
-Export is flattened, with ordinary image interoperability favored over a proprietary editable project format. No global shortcut daemon, automatic host configuration, cloud upload, or privileged process is installed. Native Qt dialogs handle file selection and overwrite confirmation.
+Export is flattened, with ordinary image interoperability favored over a proprietary editable project format. GNOME Print Screen integration uses per-user GSettings custom keyboard shortcuts with a saved backup and restore action; no global keyboard hook or privileged process is installed. File and capture CLI launches keep the main window hidden and quit after their last editor closes. Native Qt dialogs handle file selection and overwrite confirmation.
 
 Screenshot portal reference: https://flatpak.github.io/xdg-desktop-portal/docs/doc-org.freedesktop.portal.Screenshot.html

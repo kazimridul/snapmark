@@ -4,7 +4,7 @@ A native Python/Qt application for taking screenshots, highlighting details, dra
 
 ## Run
 
-Target: Ubuntu 24.04 or newer, Python 3.12+, GNOME on Wayland or X11. Automated testing currently uses Ubuntu 25.10 / Python 3.13. Real desktop capture and multi-monitor compatibility must be verified using [the manual checklist](docs/testing.md); this is version 0.1.3.
+Target: Ubuntu 24.04 or newer, Python 3.12+, GNOME on Wayland or X11. Automated testing currently uses Ubuntu 25.10 / Python 3.13. Real desktop capture and multi-monitor compatibility must be verified using [the manual checklist](docs/testing.md); this is version 0.1.4.
 
 ```bash
 cd /path/to/snapmark
@@ -13,16 +13,16 @@ python3 -m venv .venv
 ./run.sh
 ```
 
-Or use `.venv/bin/snapmark`. Open an image with `./run.sh /path/to/image.png`. Start a capture with `./run.sh --capture full`, `--capture region`, or `--capture window`. `--minimized` starts in the tray if the desktop provides one; otherwise the main window remains available.
+Or use `.venv/bin/snapmark`. Open an image with `./run.sh /path/to/image.png`; this shows only the editor and exits when you close it. Opening an image from the file manager behaves the same way. Start a capture with `./run.sh --capture full`, `--capture region`, or `--capture window`. `--minimized` starts in the tray if the desktop provides one; otherwise the main window remains available.
 
 Python virtual environment support and Qt's system libraries must be present. Ubuntu packages commonly needed are `python3-venv`, `libegl1`, `libgl1`, `libxkbcommon0`, `libxcb-cursor0`, and `libxcb-xinerama0`. Wayland needs a running session bus and a working `xdg-desktop-portal` with its desktop backend (normally `xdg-desktop-portal-gnome` on Ubuntu). Installing OS dependencies may require administrator access; running SnapMark does not.
 
 ## Ubuntu installer
 
-The bundled **0.1.3 .deb targets Ubuntu 25.10 x86-64**, the build host. It includes Python, Qt, and the application dependencies; no development environment is needed. Older Ubuntu releases need a separate build on the oldest supported system.
+The bundled **0.1.4 .deb targets Ubuntu 25.10 x86-64**, the build host. It includes Python, Qt, and the application dependencies; no development environment is needed. Older Ubuntu releases need a separate build on the oldest supported system.
 
 ```bash
-sudo apt install ./dist/snapmark_0.1.3_amd64.deb
+sudo apt install ./dist/snapmark_0.1.4_amd64.deb
 snapmark
 ```
 
@@ -55,7 +55,8 @@ Blur and pixelation are configurable visual obfuscation, not guaranteed irrevers
 
 The portal may ask for permission or show its own UI. It controls monitor coverage, scaling, and selection behavior; SnapMark does not read the Wayland framebuffer. Cancellations do not become fake screenshots, and failures never silently fall back to X11. X11 captures the full display rather than pretending to support monitor-specific native coordinate mappings. Multi-monitor/mixed-scale results need real hardware verification. Capture windows are hidden before requesting the screenshot. On return, restored windows do not request focus; the new editor requests activation and stays above the SnapMark main window. A green Screenshot captured badge remains until the first edit. Wayland compositors can still decline foreground activation when no valid user-input token exists.
 
-Capture shortcuts (default Ctrl+Shift+F/R/W) and capture-menu Ctrl+Shift+S work in the main window. Editor defaults include Ctrl+S, Ctrl+Shift+S (Save As), Ctrl+C, Ctrl+Z, and Ctrl+Y. Customize these in Settings. For a **system-wide shortcut**, use Ubuntu Settings → Keyboard → Custom Shortcuts and point it at an absolute executable command, for example `/path/to/snapmark/.venv/bin/snapmark --capture region`. Ubuntu handles conflicts and permissions. SnapMark does not install a global keyboard hook or silently change desktop bindings. Each CLI invocation creates an application process; no single-instance service is installed in this release.
+Capture shortcuts (default Ctrl+Shift+F/R/W) and capture-menu Ctrl+Shift+S work in the main window. Editor defaults include Ctrl+S, Ctrl+Shift+S (Save As), Ctrl+C, Ctrl+Z, and Ctrl+Y. Customize these in Settings. On Ubuntu GNOME, the first normal launch registers **Print Screen → SnapMark region capture** for your user. It preserves the previous binding and other modified screenshot shortcuts. Disable **Use SnapMark for Print Screen (GNOME)** in Settings → General to restore the previous binding. Do this before uninstalling the app. The shortcut points to this installation, so keep it in place. Other desktops require a custom keyboard shortcut for `snapmark --capture region`. Image-file and `--capture` launches show only the editor; cancelled or failed captures exit cleanly. Each invocation creates an application process; no single-instance service is installed.
+
 
 ## Settings, recent files, and tray
 

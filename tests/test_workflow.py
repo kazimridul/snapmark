@@ -145,3 +145,39 @@ def test_wayland_v2_window_action_opens_chooser_capture(app, image, monkeypatch,
     window.capabilities_ready(Capabilities("x11", True, True, True, "X11"))
     assert "Active Window" in button.text()
     close_main(app, window)
+
+
+def test_standalone_file_shows_only_editor_and_exits_on_close(app, image, monkeypatch, tmp_path):
+    # Observe quit without stopping the shared pytest application.
+    exits = []
+    monkeypatch.setattr(app, 'quit', lambda: exits.append(True))
+    monkeypatch.setattr('cpp.ui.main_window.capabilities', lambda: Capabilities('x11', True, True, True, 'Mock'))
+    path = tmp_path / 'example.png'
+    from cpp.storage import save_image
+    save_image(image, path)
+    window = MainWindow(Settings(tray=True), standalone=True)
+    window.history = History(tmp_path / 'history.json')
+    window.open_path(str(path))
+    wait_for(app, lambda: len(window.editors) == 1 and not window.jobs.active)
+    assert not window.isVisible()
+    assert window.tray_icon is None
+    editor = next(iter(window.editors))
+    assert editor.isVisible()
+    editor.close()
+    wait_for(app, lambda: bool(exits))
+    assert not window.editors
+    window.close()
+
+
+def test_standalone_file_error_does_not_show_main(app, monkeypatch, tmp_path):
+    exits = []
+    monkeypatch.setattr(app, 'quit', lambda: exits.append(True))
+    monkeypatch.setattr('cpp.ui.main_window.capabilities', lambda: Capabilities('none', False, False, False, 'None'))
+    messages = []
+    monkeypatch.setattr('cpp.ui.main_window.QMessageBox.warning', lambda parent, title, message: messages.append(message))
+    window = MainWindow(Settings(tray=False), standalone=True)
+    window.history = History(tmp_path / 'history.json')
+    window.open_path(str(tmp_path / 'missing.png'))
+    wait_for(app, lambda: bool(exits))
+    assert messages and not window.isVisible()
+    window.close()

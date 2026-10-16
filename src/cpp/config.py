@@ -43,6 +43,7 @@ class Settings:
     delay: int = 0
     start_minimized: bool = False
     launch_at_login: bool = False
+    print_screen: bool = True
     tray: bool = True
     theme: str = "system"
     shortcuts: dict[str, str] = field(default_factory=lambda: dict(DEFAULT_SHORTCUTS))

@@ -76,7 +76,7 @@ Priority: optional
 Architecture: {arch}
 Maintainer: SnapMark maintainers <snapmark@localhost>
 Installed-Size: {size}
-Depends: libc6 (>= {libc}), libegl1, libgl1, libdbus-1-3, libfontconfig1, libfreetype6, libglib2.0-0t64, libx11-6, libx11-xcb1, libxext6, libxrender1, libxi6, libxkbcommon0, libxkbcommon-x11-0, libxcb1, libxcb-cursor0, libxcb-icccm4, libxcb-image0, libxcb-keysyms1, libxcb-randr0, libxcb-render0, libxcb-render-util0, libxcb-shape0, libxcb-shm0, libxcb-sync1, libxcb-xfixes0, libxcb-xinerama0, libxcb-xkb1, libwayland-client0, libwayland-cursor0, libwayland-egl1
+Depends: libglib2.0-bin, libc6 (>= {libc}), libegl1, libgl1, libdbus-1-3, libfontconfig1, libfreetype6, libglib2.0-0t64, libx11-6, libx11-xcb1, libxext6, libxrender1, libxi6, libxkbcommon0, libxkbcommon-x11-0, libxcb1, libxcb-cursor0, libxcb-icccm4, libxcb-image0, libxcb-keysyms1, libxcb-randr0, libxcb-render0, libxcb-render-util0, libxcb-shape0, libxcb-shm0, libxcb-sync1, libxcb-xfixes0, libxcb-xinerama0, libxcb-xkb1, libwayland-client0, libwayland-cursor0, libwayland-egl1
 Recommends: xdg-desktop-portal, xdg-desktop-portal-gnome
 Description: Local screenshot capture and annotation
  Capture screenshots, draw annotations, crop, blur, save and copy images.
