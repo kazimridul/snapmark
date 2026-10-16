@@ -1,0 +1,20 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=SnapMark
+Comment=Capture screenshots and annotate images locally
+Exec=snapmark %f
+Icon=io.github.snapmark.SnapMark
+Terminal=false
+Categories=Graphics;Qt;
+MimeType=image/png;image/jpeg;image/webp;
+StartupNotify=true
+Actions=Full;Region;
+
+[Desktop Action Full]
+Name=Capture Full Screen
+Exec=snapmark --capture full
+
+[Desktop Action Region]
+Name=Capture Region
+Exec=snapmark --capture region
