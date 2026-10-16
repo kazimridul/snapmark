@@ -124,3 +124,24 @@ def test_capture_hides_existing_editor_and_cancels_its_activation_retry(app, ima
     wait_for(app, lambda: len(window.editors) == 2 and not window.jobs.active)
     assert editor.isVisible()
     close_main(app, window)
+
+
+def test_wayland_v2_window_action_opens_chooser_capture(app, image, monkeypatch, tmp_path):
+    window = make_main(app, image, monkeypatch, tmp_path)
+    window.capabilities_ready(Capabilities("wayland", True, True, True, "Interactive chooser", 2))
+    button = window.capture_buttons["window"]
+    assert button.isEnabled()
+    assert "Select Window" in button.text()
+    assert "choose Window" in button.toolTip()
+    calls = []
+    def capture_window(mode, caps, cancelled):
+        calls.append(mode)
+        return image
+    monkeypatch.setattr("cpp.ui.main_window.capture", capture_window)
+    button.click()
+    wait_for(app, lambda: len(window.editors) == 1 and not window.jobs.active)
+    assert calls == ["window"]
+    assert next(iter(window.editors)).document.state.base == image
+    window.capabilities_ready(Capabilities("x11", True, True, True, "X11"))
+    assert "Active Window" in button.text()
+    close_main(app, window)

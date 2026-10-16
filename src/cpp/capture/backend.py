@@ -56,8 +56,12 @@ async def portal_capabilities() -> Capabilities:
         targets = values.get("AvailableTargets").value if "AvailableTargets" in values else 0
         full = version < 3 or bool(targets & 1)
         # A returned screenshot can always be cropped locally for a region.
-        window = version >= 3 and bool(targets & (2 | 8))
+        # v2 has an interactive desktop chooser, but cannot preselect a
+        # window target. Let the user choose Window there (e.g. GNOME).
+        window = version == 2 or (version >= 3 and bool(targets & (2 | 8)))
         description = "Wayland · desktop screenshot portal"
+        if version == 2:
+            description += ". For a window screenshot, choose Window in the system screenshot chooser."
         if not window:
             description += ". Window capture is unavailable on this portal; use Region instead."
         return Capabilities("wayland", full, full or bool(targets & 4), window, description, version, targets)

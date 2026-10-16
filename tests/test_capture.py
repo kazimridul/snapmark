@@ -45,7 +45,7 @@ class FakeBus:
 
 
 @pytest.mark.parametrize("mode,version,targets,target", [
-    ("full", 2, 0, None), ("region", 2, 0, None), ("full", 3, 15, 1),
+    ("full", 2, 0, None), ("region", 2, 0, None), ("window", 2, 0, None), ("full", 3, 15, 1),
     ("region", 3, 15, 4), ("window", 3, 15, 8), ("window", 3, 3, 2),
 ])
 def test_portal_options_response_race_and_cleanup(app, image, tmp_path, monkeypatch, mode, version, targets, target):
@@ -150,3 +150,18 @@ def test_portal_screen_fallback_does_not_launch_native_region_selector(app, imag
     asyncio.run(portal_capture("region", caps, threading.Event()))
     assert bus.options["target"].value == 1
     assert bus.options["interactive"].value is False
+
+
+@pytest.mark.parametrize("version,targets,available", [(1, 0, False), (2, 0, True),
+    (3, 1, False), (3, 2, True), (3, 8, True)])
+def test_window_capabilities_include_legacy_interactive_chooser(monkeypatch, version, targets, available):
+    from cpp.capture.backend import portal_capabilities
+    class CapabilityBus(FakeBus):
+        async def call(self, message):
+            return SimpleNamespace(message_type=MessageType.METHOD_RETURN,
+                body=[{"version": Variant("u", version), "AvailableTargets": Variant("u", targets)}])
+    bus = CapabilityBus("")
+    monkeypatch.setattr("dbus_next.aio.MessageBus", lambda: bus)
+    caps = asyncio.run(portal_capabilities())
+    assert caps.window is available
+    assert bus.disconnected

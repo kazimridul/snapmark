@@ -171,12 +171,18 @@ class MainWindow(QMainWindow):
         self.capabilities_checked = True
         self.caps = caps
         self.capture_status.setText(caps.description)
-        if caps.window and caps.session == "wayland" and not caps.targets & 8:
-            self.capture_buttons["window"].setText("▤   Select Window")
+        select_window = caps.session == "wayland" and not caps.targets & 8
+        self.capture_buttons["window"].setText("▤   Select Window" if select_window else "▤   Active Window")
+        tooltips = {
+            "full": "Capture the full desktop using its supported screenshot API",
+            "region": "Select a region using the system dialog or a frozen screenshot",
+            "window": ("Open the system screenshot chooser, choose Window, then click the window to capture"
+                       if caps.session == "wayland" and caps.portal_version == 2 else
+                       "Choose a window in the system selector" if select_window else "Capture the active window"),
+        }
         for mode, button in self.capture_buttons.items():
             button.setEnabled(getattr(caps, mode))
-            if not getattr(caps, mode):
-                button.setToolTip(caps.description)
+            button.setToolTip(tooltips[mode] if getattr(caps, mode) else caps.description)
 
     def start_capture(self, mode):
         if self.capturing:

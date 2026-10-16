@@ -38,7 +38,7 @@ Blur and pixelation are configurable visual obfuscation, not guaranteed irrevers
 |---|---|---|---|
 | X11 | Pillow/XCB captures the full X display at native pixel resolution | Drag once on a fullscreen frozen image; releasing the mouse opens the editor | Uses the window manager's `_NET_ACTIVE_WINDOW`, if supported; client area without decorations |
 | Wayland portal v1 | Desktop portal screenshot workflow | Drag once on the returned screenshot | Disabled; use Region |
-| Wayland portal v2 | Desktop portal screenshot workflow | Select once in the system screenshot UI; the result opens directly in the editor | Disabled; use Region |
+| Wayland portal v2 | Desktop portal screenshot workflow | Select once in the system screenshot UI; the result opens directly in the editor | Select Window opens the system chooser; choose Window there, then click the desired window |
 | Wayland portal v3 | Advertised Screen target | Advertised Area target, otherwise local selection of returned screen image | Active Window if advertised, otherwise Select Window if advertised |
 | No usable display/portal | Disabled with an explanation | Disabled | Disabled; existing images can still be edited |
 
