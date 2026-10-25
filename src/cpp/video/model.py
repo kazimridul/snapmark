@@ -8,6 +8,7 @@ import os
 import tempfile
 import uuid
 from cpp.editor.model import Annotation
+from cpp.video.animations import Animation, Animations
 
 KINDS = {'pen', 'highlighter', 'highlight_rect', 'arrow', 'rectangle', 'ellipse', 'text', 'blur', 'pixelate'}
 
@@ -18,6 +19,7 @@ class TimedAnnotation:
     end: float
     id: str = field(default_factory=lambda: uuid.uuid4().hex)
     strength: int = 20
+    animations: Animations = field(default_factory=Animations)
 
     def active(self, seconds):
         return self.start <= seconds < self.end
@@ -41,6 +43,8 @@ class Project:
     segments: list = field(default_factory=list)
     crop: tuple | None = None
     annotations: list[TimedAnnotation] = field(default_factory=list)
+    video_animations: Animations = field(default_factory=Animations)
+    transitions: dict[str,Animation] = field(default_factory=dict)
 
     def __post_init__(self):
         if not self.segments:
@@ -51,7 +55,39 @@ class Project:
     def output_duration(self):
         return sum(b-a for a, b in self.segments)
 
+    @staticmethod
+    def join_key(left,right):
+        return f'{left[1]:.12g}>{right[0]:.12g}'
+
+    def transition(self,index):
+        return self.transitions.get(self.join_key(self.segments[index-1],self.segments[index]),Animation()) if index>0 else Animation()
+
+    def join_half(self,index):
+        spec=self.transition(index)
+        return min(spec.duration/2,(self.segments[index-1][1]-self.segments[index-1][0])/2,(self.segments[index][1]-self.segments[index][0])/2) if spec.kind!='None' else 0
+
+    @property
+    def has_animations(self):
+        return self.video_animations.enabled or any(a.animations.enabled for a in self.annotations) or any(self.transition(i).kind!='None' for i in range(1,len(self.segments)))
+
+    def join_audio_gain(self,seconds):
+        gain=1.
+        for span in self.spans[1:]:
+            spec=self.transition(span.index)
+            half=self.join_half(span.index)
+            if half and spec.values('join')['audio_fade'] and abs(seconds-span.start)<half:
+                gain=min(gain,abs(seconds-span.start)/half)
+        return gain
+
     def validate(self):
+        self.video_animations.validate('video')
+        for key,spec in self.transitions.items():
+            if not isinstance(key,str) or len(key)>100: raise ValueError('Invalid transition key.')
+            try:
+                ends=[float(value) for value in key.split('>')]
+                if len(ends)!=2 or any(not math.isfinite(v) or v<0 or v>self.duration+.001 for v in ends):raise ValueError()
+            except (ValueError,TypeError):raise ValueError('Invalid transition cut positions.')
+            spec.validate('join','join')
         if not math.isfinite(self.duration) or self.duration <= 0 or not 0 < self.fps <= 240:
             raise ValueError('Invalid video duration or frame rate.')
         if not 0 < self.width <= 16384 or not 0 < self.height <= 16384:
@@ -64,6 +100,7 @@ class Project:
         ordered=sorted(self.segments)
         if any(left[1]>right[0]+1e-7 for left,right in zip(ordered,ordered[1:])):
             raise ValueError('Source segments must not overlap.')
+        self.video_animations.validate('video',length=self.output_duration)
         if self.crop:
             x, y, w, h = self.crop
             if any(type(v) is not int for v in self.crop) or x < 0 or y < 0 or w < 2 or h < 2 or x+w > self.width or y+h > self.height:
@@ -71,6 +108,7 @@ class Project:
         ids = set()
         for item in self.annotations:
             a = item.drawing
+            item.animations.validate('annotation',a.kind,item.end-item.start)
             if item.id in ids or not item.id or a.kind not in KINDS:
                 raise ValueError('Invalid or duplicate annotation.')
             ids.add(item.id)
@@ -157,7 +195,7 @@ class Project:
             raise ValueError('A project cannot overwrite its source video.')
         if target.suffix.lower() != '.json':
             raise ValueError('Save editable projects with a .json extension.')
-        data = {'version': 1, **asdict(self)}
+        data = {'version': 2, **asdict(self)}
         data['source'] = os.path.relpath(Path(self.source).resolve(), target.parent)
         fd, name = tempfile.mkstemp(prefix='.snapmark-project-', dir=target.parent)
         try:
@@ -173,7 +211,7 @@ class Project:
         if path.stat().st_size > 20_000_000:
             raise ValueError('Project file is too large.')
         data = json.loads(path.read_text())
-        if data.pop('version', None) != 1:
+        if data.pop('version', None) not in (1,2):
             raise ValueError('Unsupported SnapMark video project version.')
         source = Path(data['source'])
         source = source if source.is_absolute() else path.parent / source
@@ -182,11 +220,14 @@ class Project:
         data['source'] = str(source.resolve())
         annotations = []
         for item in data.pop('annotations', []):
+            item['animations']=Animations.load(item.pop('animations',{}))
             drawing = item.pop('drawing')
             drawing['points'] = tuple(tuple(p) for p in drawing['points'])
             annotations.append(TimedAnnotation(Annotation(**drawing), **item))
         if not data.get('segments'):
             raise ValueError('Project has no video segments.')
+        data['video_animations']=Animations.load(data.pop('video_animations',{}))
+        data['transitions']={k:Animation(**v) for k,v in data.pop('transitions',{}).items()}
         return cls(**data, annotations=annotations)
 
 class History:

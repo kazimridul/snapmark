@@ -27,6 +27,8 @@ class VideoCanvas(QWidget):
         self.target = QRectF()
         self.view_rect = QRectF()
         self.preview_crop = False
+        self.timeline_position=0.
+        self.animation_preview=None
         self.setMouseTracking(True)
     def set_tool(self, tool):
         from cpp.ui.icons import tool_cursor
@@ -54,13 +56,24 @@ class VideoCanvas(QWidget):
         self.view_rect = QRectF(*self.project.crop) if self.preview_crop and self.project.crop else QRectF(0,0,self.project.width,self.project.height)
         size = self.view_rect.size().toSize().scaled(self.size(), Qt.AspectRatioMode.KeepAspectRatio)
         self.target = QRectF((self.width()-size.width())/2,(self.height()-size.height())/2,size.width(),size.height())
-        p.drawImage(self.target,self.frame,self.view_rect)
+        animation_project=self.animation_preview or self.project
+        animated=animation_project.has_animations
+        if animated:
+            from cpp.video.animation_render import composite_frame
+            if self.move_preview:
+                import copy
+                animation_project=copy.copy(animation_project)
+                animation_project.annotations=[replace(a,drawing=self.move_preview[1]) if a.id==self.move_preview[0] else a for a in animation_project.annotations]
+            frame=composite_frame(self.frame,animation_project,self.position,self.timeline_position)
+        else:
+            frame=self.frame
+        p.drawImage(self.target,frame,self.view_rect)
         p.save()
         p.translate(self.target.topLeft())
         p.scale(self.target.width()/self.view_rect.width(),self.target.height()/self.view_rect.height())
         p.translate(-self.view_rect.x(),-self.view_rect.y())
         p.setClipRect(self.view_rect)
-        for item in self.project.annotations:
+        for item in ([] if animated else self.project.annotations):
             if self.move_preview and item.id==self.move_preview[0]:
                 item=replace(item,drawing=self.move_preview[1])
             if item.active(self.position):
@@ -76,13 +89,22 @@ class VideoCanvas(QWidget):
                         p.drawImage(r.topLeft(),effect)
                 else:
                     paint_annotation(p,item.drawing)
-        if self.selected_id and self.tool=='select':
+        if self.selected_id and self.tool=='select' and self.animation_preview is None:
             selected=next((a for a in self.project.annotations if a.id==self.selected_id and a.active(self.position)),None)
             if selected:
                 drawing=self.move_preview[1] if self.move_preview and self.move_preview[0]==selected.id else selected.drawing
                 p.setBrush(Qt.BrushStyle.NoBrush)
                 p.setPen(QPen(QColor('#ffffff'),max(1,1/self.target.width()*self.view_rect.width()),Qt.PenStyle.DashLine))
-                p.drawRect(drawing.bounds())
+                if selected.animations.enabled:
+                    from cpp.video.animation_render import state_for,animation_transform
+                    from cpp.video.animation_render import video_matrix
+                    matrix,_=video_matrix(self.project,self.timeline_position)
+                    p.save();p.setTransform(animation_transform(drawing,state_for(selected.animations,self.position-selected.start,selected.end-selected.start,drawing.text))*matrix,True);p.drawRect(drawing.bounds());p.restore()
+                elif self.project.has_animations:
+                    from cpp.video.animation_render import video_matrix
+                    matrix,_=video_matrix(self.project,self.timeline_position)
+                    p.save();p.setTransform(matrix,True);p.drawRect(drawing.bounds());p.restore()
+                else:p.drawRect(drawing.bounds())
         if self.preview:
             paint_annotation(p,self.preview)
         if self.project.crop:
@@ -109,7 +131,21 @@ class VideoCanvas(QWidget):
         self.move_preview=None
         if self.tool == 'select':
             for item in reversed(self.project.annotations):
-                if item.active(self.position) and item.drawing.bounds().contains(QPointF(*point)):
+                hit=QPointF(*point)
+                visible=item.active(self.position)
+                if visible and self.project.has_animations:
+                    from cpp.video.animation_render import video_matrix
+                    matrix,shown=video_matrix(self.project,self.timeline_position)
+                    inverse,ok=matrix.inverted()
+                    visible=shown and ok
+                    if ok:hit=inverse.map(hit)
+                if visible and item.animations.enabled:
+                    from cpp.video.animation_render import state_for,animation_transform
+                    state=state_for(item.animations,self.position-item.start,item.end-item.start,item.drawing.text)
+                    matrix,ok=animation_transform(item.drawing,state).inverted()
+                    visible=ok and state['opacity']>0 and state['reveal']>0
+                    if ok:hit=matrix.map(hit)
+                if visible and item.drawing.bounds().contains(hit):
                     self.drag_id = item.id
                     self.selected_id=item.id
                     self.annotation_selected.emit(item.id)

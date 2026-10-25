@@ -34,6 +34,9 @@ class Timeline(QWidget):
     selected=Signal(str)
     segment_selected=Signal(int)
     segment_moved=Signal(int,int)
+    join_selected=Signal(int)
+    edge_selected=Signal(str)
+    animation_requested=Signal(str)
     LABEL=140
     HEADER=30
     ROW=42
@@ -49,7 +52,7 @@ class Timeline(QWidget):
         self._clip_slot=None
         self.setMinimumHeight(116)
         self.setMouseTracking(True)
-        self.setToolTip('Drag video clips to reorder; deleted clips close up automatically. Drag annotation bars/edges to edit timing, or layer names to reorder overlays. Ctrl+wheel zooms; Shift+wheel scrolls horizontally.')
+        self.setToolTip('Drag video clips to reorder; deleted clips close up automatically. Drag annotation bars/edges to edit timing, or layer names to reorder overlays. Use IN/OUT or the join badges for video animations; double-click an annotation row for layer animations. Ctrl+wheel zooms; Shift+wheel scrolls horizontally.')
     def set_project(self,project):
         self.project=project
         self.bounds=[0,project.output_duration]
@@ -100,7 +103,21 @@ class Timeline(QWidget):
             p.setBrush(QColor('#526d9f'))
             p.drawRoundedRect(r,4,4)
             p.setPen(QColor('white'))
-            p.drawText(r.adjusted(8,0,-4,0),Qt.AlignmentFlag.AlignVCenter,f'Clip {span.index+1} · {span.source_start:.2f}–{span.source_end:.2f}s')
+            label_rect=r.adjusted(48 if span.index==0 else 8,0,-42 if span.index==len(self.project.segments)-1 else -4,0)
+            if label_rect.width()>30:p.drawText(label_rect,Qt.AlignmentFlag.AlignVCenter,f'Clip {span.index+1} · {span.source_start:.2f}–{span.source_end:.2f}s')
+        for phase,label,x in [('entrance','IN',self.x(0)+10),('exit','OUT',self.x(self.project.output_duration)-38)]:
+            spec=getattr(self.project.video_animations,phase)
+            p.setBrush(QColor('#825ac5') if spec.kind!='None' else QColor('#384155'));p.setPen(QColor('#e9ddfc'))
+            p.drawRoundedRect(QRectF(x,self.HEADER+3,28,13),3,3)
+            p.drawText(QRectF(x,self.HEADER+3,28,13),Qt.AlignmentFlag.AlignCenter,label)
+        for span in self.project.spans[1:]:
+            x=self.x(span.start)
+            half=self.project.join_half(span.index)
+            if half:
+                p.fillRect(QRectF(self.x(span.start-half),self.HEADER+2,self.x(span.start+half)-self.x(span.start-half),5),QColor('#b89af3'))
+            p.setBrush(QColor('#9c77db') if half else QColor('#444b5d'));p.setPen(QColor('#e9ddfc'))
+            p.drawRoundedRect(QRectF(x-7,self.HEADER+self.ROW-13,14,12),3,3)
+            p.drawText(QRectF(x-7,self.HEADER+self.ROW-13,14,12),Qt.AlignmentFlag.AlignCenter,'⋈')
         for i,item in enumerate(self.project.annotations):
             if self._preview and self._preview[0]==item.id:
                 item=replace(item,start=self._preview[1],end=self._preview[2])
@@ -138,6 +155,16 @@ class Timeline(QWidget):
             return
         x,y=event.position().x(),event.position().y()
         row=int((y-self.HEADER)//self.ROW)
+        if row==0 and self.HEADER+3<=y<=self.HEADER+16:
+            for phase,left in [('entrance',self.x(0)+10),('exit',self.x(self.project.output_duration)-38)]:
+                if left<=x<=left+28:
+                    self.edge_selected.emit(phase)
+                    return
+        if row==0 and y>=self.HEADER+self.ROW-14:
+            join=next((s.index for s in self.project.spans[1:] if abs(x-self.x(s.start))<9),None)
+            if join is not None:
+                self.join_selected.emit(join)
+                return
         if 1<=row<=len(self.project.annotations) and x<self.LABEL:
             self.drag=('order',row-1)
         elif (hit:=self.annotation_hit(row,x)):
@@ -160,6 +187,14 @@ class Timeline(QWidget):
         else:
             self.drag=('seek',)
         self.mouseMoveEvent(event)
+    def mouseDoubleClickEvent(self,event):
+        if self.project:
+            row=int((event.position().y()-self.HEADER)//self.ROW)
+            if 1<=row<=len(self.project.annotations):
+                self.drag=None;self._preview=None
+                self.animation_requested.emit(self.project.annotations[row-1].id)
+                event.accept();return
+        super().mouseDoubleClickEvent(event)
     def mouseMoveEvent(self,event):
         if not self.project:
             return

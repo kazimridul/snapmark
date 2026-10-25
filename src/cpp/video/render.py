@@ -36,6 +36,9 @@ def export(project, destination, settings=ExportSettings(), cancelled=None, prog
         raise ValueError('Choose an .mp4 output file.')
     if target.exists():
         raise FileExistsError('Choose a new export filename; this file already exists.')
+    if project.has_animations:
+        from cpp.video.animated_export import render_export
+        return render_export(project,target,settings,cancelled,progress)
     with tempfile.TemporaryDirectory(prefix='.snapmark-export-', dir=target.parent) as temp:
         temp = Path(temp)
         args = ['-y', '-i', project.source]

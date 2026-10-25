@@ -1,4 +1,4 @@
-# Screen recording and video editing (0.2.3)
+# Screen recording and video editing (0.3.0)
 
 SnapMark retains the existing screenshot capture services, image document/canvas,
 settings, and worker architecture. `MainWindow` now hosts Screenshot and Screen
@@ -122,14 +122,20 @@ just “Export complete”. Temporary export directories are cleaned on success/
 failure/cancellation. Atomic no-clobber publication avoids overwriting a concurrent file.
 A failed recording preserves its WebM intermediate and reports its location.
 
-Save Project stores version-1 JSON referencing the source with relative paths,
-kept segments, crop and timed annotations. Open Project restores editing state.
+Save Project stores version-2 JSON referencing the source with relative paths,
+kept segments, crop and timed annotations. Open Project restores editing state, including animations. Version-1 projects remain readable.
 Keep the source alongside the project when moving files. Missing source files,
 invalid ranges and unsupported project versions produce errors. Projects do not
 embed media. Opening or previewing an already saved recording does not prompt
 on close. No-op operations do not dirty a project; undoing to its last saved
 state removes the warning. Closing prompts only for actual unsaved edits. Quit waits for
 recording finalization and export cancellation before allowing closure.
+
+## Animations
+
+Use the sparkle toolbar action for annotation or whole-video effects. IN/OUT
+markers and join badges open the corresponding settings directly. The
+[animation guide](animations.md) covers all presets, timing and export behavior.
 
 ## Modules and reuse
 
@@ -323,3 +329,24 @@ feedback, crop controls, file metadata and confirmed storage deletion. The final
 Debian package passed checksum, extraction, bundled-dialog and apt-upgrade
 simulation checks; its executable reports `SnapMark 0.2.3`. It was not installed
 system-wide by this session.
+
+
+### 0.3.0 animation editing
+
+The animation workspace adds all 41 listed annotation presets, applicable
+whole-video opening/ending effects and five clip joins through a chosen color.
+Contextual properties, timing ranges, repeats, reverse/alternate, embedded
+preview, reset, undo/redo and version-2 project persistence are integrated.
+Version-1 projects remain readable. See [the animation guide](animations.md).
+
+The full automated suite passed **183 tests**. Every annotation preset changes
+rendered pixels; tests also cover all joins, duration preservation, timing,
+properties, migration, cropped transforms and text/border behavior. Real MP4
+tests check opening/exit/join pixels, annotation fades, audio preservation and
+cancellation cleanup. A live Qt Multimedia check played reordered synthetic
+footage with an animated annotation and video effects through the correct end
+without player errors.
+
+The 0.3.0 Debian package passed SHA-256 verification, extraction, bundled
+animation-module checks and an apt upgrade simulation. Its extracted executable
+reports `SnapMark 0.3.0`. It was not installed system-wide by this session.

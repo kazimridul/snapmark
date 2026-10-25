@@ -5,6 +5,7 @@ from PySide6.QtSvg import QSvgRenderer
 from PySide6.QtWidgets import QApplication
 
 PATHS = {
+    "animation": '<path d="m12 2 2.5 7.5L22 12l-7.5 2.5L12 22l-2.5-7.5L2 12l7.5-2.5Z"/><path d="m18 2 .8 2.2L21 5l-2.2.8L18 8l-.8-2.2L15 5l2.2-.8Z"/>',
     "info": '<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7h.01"/>',
     "fullscreen": '<path d="M8 3H3v5M16 3h5v5M21 16v5h-5M8 21H3v-5"/>',
     "split": '<path d="M12 3v18M4 7h4v10H4M20 7h-4v10h4"/><path d="m10 12 2-2 2 2"/>',

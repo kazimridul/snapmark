@@ -14,6 +14,7 @@ class Player:
     def __init__(self, owner, canvas):
         self.media = QMediaPlayer(owner)
         self.audio = QAudioOutput(owner)
+        self.volume_base=.8
         self.audio.setVolume(.8)
         self.media.setAudioOutput(self.audio)
         self.sink = QVideoSink(owner)
@@ -48,7 +49,7 @@ class Player:
         volume.setValue(80)
         volume.setMaximumWidth(100)
         volume.setToolTip('Playback volume')
-        volume.valueChanged.connect(lambda v:self.audio.setVolume(v/100))
+        volume.valueChanged.connect(self.set_volume)
         row.addWidget(volume)
         mute = QToolButton()
         mute.setIcon(tool_icon('volume'))
@@ -75,7 +76,15 @@ class Player:
         if status==QMediaPlayer.MediaStatus.LoadedMedia:
             self.sequence.seek(self.sequence.position)
 
+    def set_volume(self,value):
+        self.volume_base=value/100
+        self.audio.setVolume(self.volume_base*self.sequence.project.join_audio_gain(self.sequence.position))
+
     def position(self,seconds,source):
+        self.canvas.timeline_position=seconds
+        animation_project=getattr(self.canvas,'animation_preview',None) or self.sequence.project
+        if hasattr(self,'audio'):
+            self.audio.setVolume(self.volume_base*animation_project.join_audio_gain(seconds))
         span=self.sequence.project.spans[self.sequence.index]
         if not span.source_start<=self.canvas.position<span.source_end:
             # A deleted/previous clip must not remain visible during an async seek.

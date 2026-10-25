@@ -4,7 +4,7 @@ A native Python/Qt application for taking screenshots, highlighting details, dra
 
 ## Run
 
-Target: Ubuntu 24.04 or newer, Python 3.12+, GNOME on Wayland or X11. Automated testing currently uses Ubuntu 25.10 / Python 3.13. Real desktop capture and multi-monitor compatibility must be verified using [the manual checklist](docs/testing.md); this is version 0.2.3.
+Target: Ubuntu 24.04 or newer, Python 3.12+, GNOME on Wayland or X11. Automated testing currently uses Ubuntu 25.10 / Python 3.13. Real desktop capture and multi-monitor compatibility must be verified using [the manual checklist](docs/testing.md); this is version 0.3.0.
 
 ```bash
 cd /path/to/snapmark
@@ -19,10 +19,10 @@ Python virtual environment support and Qt's system libraries must be present. Ub
 
 ## Ubuntu installer
 
-The bundled **0.2.3 .deb targets Ubuntu 25.10 x86-64**, the build host. It includes Python, Qt, and the application dependencies; no development environment is needed. Older Ubuntu releases need a separate build on the oldest supported system.
+The bundled **0.3.0 .deb targets Ubuntu 25.10 x86-64**, the build host. It includes Python, Qt, and the application dependencies; no development environment is needed. Older Ubuntu releases need a separate build on the oldest supported system.
 
 ```bash
-sudo apt install ./dist/snapmark_0.2.3_amd64.deb
+sudo apt install ./dist/snapmark_0.3.0_amd64.deb
 snapmark
 ```
 
@@ -76,7 +76,7 @@ The desktop installer creates the launcher and SVG icon in your XDG user data di
 
 Uninstall the launcher with `.venv/bin/python tools/install_desktop.py --uninstall`, disable Launch at login in Settings, then uninstall the Python package with `.venv/bin/python -m pip uninstall snapmark-screenshot`. Your saved images and local settings/history are preserved.
 
-## Screen recording and video editing — 0.2.3
+## Screen recording and video editing — 0.3.0
 
 The **Screen Recording** tab adds portal/PipeWire recording on Wayland and full
 screen/region recording on X11, optional selected microphone/system audio,
@@ -86,3 +86,10 @@ See [setup, usage, implementation and verification limits](docs/video.md).
 Wayland area recording asks you to share a monitor, then select a pixel-accurate area before recording starts.
 Actual desktop recording and installation verification are still pending; the
 synthetic capture/export tests do not establish full desktop compatibility.
+
+
+Video animations are available from the sparkle toolbar action, the timeline's
+**IN / OUT** markers, and the badges between clips. Annotation layers support
+41 entrance, emphasis and exit presets with contextual controls and a live
+preview. Joins offer five transitions through a chosen color without changing
+sequence duration. See the [animation guide](docs/animations.md).

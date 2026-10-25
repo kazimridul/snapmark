@@ -51,6 +51,8 @@ class VideoEditor(QMainWindow):
         filename.setSizePolicy(QSizePolicy.Policy.Expanding,QSizePolicy.Policy.Preferred)
         filename.setMargin(8)
         header.addWidget(filename)
+        self.animation_action=header.addAction(tool_icon('animation'),'Animations and clip transitions…')
+        self.animation_action.triggered.connect(lambda:self.open_animations())
         self.file_properties_action=header.addAction(tool_icon('info'),'File properties')
         self.file_properties_action.triggered.connect(self.file_properties)
         self.delete_file_action=header.addAction(tool_icon('delete'),'Delete source video from storage…')
@@ -238,6 +240,9 @@ class VideoEditor(QMainWindow):
         self.timeline.selected.connect(self.select_id)
         self.timeline.segment_selected.connect(self.segments.setCurrentIndex)
         self.timeline.segment_moved.connect(self.move_segment)
+        self.timeline.join_selected.connect(lambda index:self.open_animations(('join',index)))
+        self.timeline.edge_selected.connect(lambda phase:self.open_animations(('video',None),phase))
+        self.timeline.animation_requested.connect(lambda id:self.open_animations(('annotation',id)))
         self.segments.currentIndexChanged.connect(self.select_segment)
         self.timeline_zoom=1.
         self.timeline_scroll=TimelineScroll()
@@ -417,7 +422,7 @@ class VideoEditor(QMainWindow):
         row = self.annotations.currentRow()
         self.annotations.clear()
         for a in p.annotations:
-            item=QListWidgetItem(tool_icon(a.drawing.kind),f'{a.drawing.kind.replace("_"," ").title()}  {a.start:.2f}–{a.end:.2f}s')
+            item=QListWidgetItem(tool_icon(a.drawing.kind),f'{a.drawing.kind.replace("_"," ").title()}{" ✦" if a.animations.enabled else ""}  {a.start:.2f}–{a.end:.2f}s')
             item.setToolTip(f'Layer {a.id} · original-frame coordinates')
             self.annotations.addItem(item)
         restored=next((i for i,a in enumerate(p.annotations) if a.id==selected_id),-1)
@@ -430,7 +435,9 @@ class VideoEditor(QMainWindow):
         self.changes.addItem('Opened '+Path(p.source).name)
         states=self.history.past+[p]
         for before,after in zip(states,states[1:]):
-            if before.crop!=after.crop:
+            if before.video_animations!=after.video_animations or before.transitions!=after.transitions:
+                label='Changed video animations / transitions'
+            elif before.crop!=after.crop:
                 label='Changed crop' if after.crop else 'Cleared crop'
             elif before.segments!=after.segments:
                 label='Changed video segments / trim'
@@ -630,6 +637,9 @@ class VideoEditor(QMainWindow):
         if index>=0:
             self.edit(lambda p:p.segments.pop(index))
     def position(self,seconds,source):
+        if getattr(self,'animation_preview_end',None) is not None and seconds>=self.animation_preview_end:
+            self.player.pause()
+            self.animation_preview_end=None
         self.statusBar().showMessage(f'Edited {seconds:.3f}s / {self.history.project.output_duration:.3f}s · Source frame {round(source*self.history.project.fps)}')
         self.timeline.position=seconds
         self.timeline.update()
@@ -696,6 +706,60 @@ class VideoEditor(QMainWindow):
     def open_export(self):
         if self.exported:
             QDesktopServices.openUrl(QUrl.fromLocalFile(self.exported))
+    def open_animations(self,target=None,phase=None):
+        from cpp.video.animation_dialog import AnimationDialog
+        self.player.pause()
+        if target is None:
+            row=self.selected()
+            target=('annotation',self.history.project.annotations[row].id) if row is not None else ('video',None)
+        dialog=AnimationDialog(self.history.project,target,self,phase)
+        original_position=self.player.sequence.position
+        self.animation_preview_end=None
+        def stop():
+            self.player.pause()
+            self.canvas.animation_preview=None
+            self.animation_preview_end=None
+            self.canvas.update()
+        def preview(project,context,key,phase):
+            from cpp.video.animations import window
+            self.player.pause()
+            self.canvas.animation_preview=project
+            if context=='annotation':
+                item=next(a for a in project.annotations if a.id==key)
+                a,b,cycle=window(getattr(item.animations,phase),phase,item.end-item.start,item.drawing.text)
+                source_a=item.start+max(0,a-.25);source_b=item.start+b
+                pieces=[]
+                for span in project.spans:
+                    lo,hi=max(source_a,item.start,span.source_start),min(source_b,item.end,span.source_end)
+                    if lo<hi:pieces.append((span.start+lo-span.source_start,span.start+hi-span.source_start))
+                if not pieces:
+                    self.canvas.animation_preview=None
+                    QMessageBox.information(dialog,'Animation preview','This animation window is outside the kept footage. Adjust its timing to preview it.')
+                    return
+                start,end=pieces[0]
+                if phase=='emphasis':end=min(end,start+max(2,min(6,cycle*2)))
+            elif context=='join':
+                t=project.spans[key].start;half=max(.5,project.join_half(key));start,end=max(0,t-half),min(project.output_duration,t+half)
+            else:
+                spec=getattr(project.video_animations,phase)
+                a,b,_=window(spec,phase,project.output_duration)
+                start,end=max(0,a-.25),min(project.output_duration,b+.25)
+                if spec.kind=='None':start,end=(max(0,project.output_duration-3),project.output_duration) if phase=='exit' else (0,min(3,project.output_duration))
+            self.animation_preview_end=end
+            self.player.seek_timeline(start)
+            self.player.sequence.play()
+        dialog.preview_requested.connect(preview)
+        dialog.preview_stopped.connect(stop)
+        if dialog.exec():
+            def commit(project):
+                project.video_animations=copy.deepcopy(dialog.draft.video_animations)
+                project.transitions=copy.deepcopy(dialog.draft.transitions)
+                for item,draft in zip(project.annotations,dialog.draft.annotations):item.animations=copy.deepcopy(draft.animations)
+            self.edit(commit)
+        stop()
+        self.player.seek_timeline(min(original_position,self.history.project.output_duration))
+        dialog.deleteLater()
+
     def file_properties(self):
         if self.jobs.active:
             self.statusBar().showMessage('Wait for export to finish before changing source files.',5000)

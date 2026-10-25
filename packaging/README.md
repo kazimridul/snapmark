@@ -2,12 +2,12 @@
 
 ## Bundled Debian installer
 
-Version 0.2.3 is built for **Ubuntu 25.10, amd64**, with glibc 2.42 or newer. The package includes Python, PySide6/Qt, Pillow, D-Bus bindings, and Xlib under `/opt/snapmark`. It installs `/usr/bin/snapmark`, the applications-menu launcher, and the SVG icon. Apt resolves host display libraries. The host supplies FFmpeg, GStreamer/GI, audio services and the desktop portals. See [video setup and verification limits](../docs/video.md).
+Version 0.3.0 is built for **Ubuntu 25.10, amd64**, with glibc 2.42 or newer. The package includes Python, PySide6/Qt, Pillow, D-Bus bindings, and Xlib under `/opt/snapmark`. It installs `/usr/bin/snapmark`, the applications-menu launcher, and the SVG icon. Apt resolves host display libraries. The host supplies FFmpeg, GStreamer/GI, audio services and the desktop portals. See [video setup and verification limits](../docs/video.md).
 
 Install from the repository root:
 
 ```bash
-sudo apt install ./dist/snapmark_0.2.3_amd64.deb
+sudo apt install ./dist/snapmark_0.3.0_amd64.deb
 snapmark
 ```
 
@@ -16,7 +16,7 @@ Choose SnapMark in the applications menu, or run `snapmark --capture region`. On
 Validate the downloaded package in its containing directory:
 
 ```bash
-sha256sum -c snapmark_0.2.3_amd64.deb.sha256
+sha256sum -c snapmark_0.3.0_amd64.deb.sha256
 ```
 
 The checksum detects changes; the package is not signed or published to an apt repository. This build is not certified for older Ubuntu versions. PyInstaller bundles depend on the build host's glibc; build and test on the oldest Ubuntu release you want to support.
@@ -62,11 +62,11 @@ For each new release:
 2. Add `docs/releases/vX.Y.Z.md` with the matching version's release notes and update packaging dependency pins if needed.
 3. Commit and push to `main`. Follow **Actions → Release Ubuntu app** for the build result.
 
-The current version is `v0.2.3`, with [these release notes](../docs/releases/v0.2.3.md). A version that is already published is skipped; pushing more commits does not overwrite its assets. Bump the version for another release. If a pre-existing tag points to a different commit, publication fails rather than attach an installer built from different source. You can also use **Run workflow** on `main` to retry a failed release. No manual tag creation is needed.
+The current version is `v0.3.0`, with [these release notes](../docs/releases/v0.3.0.md). A version that is already published is skipped; pushing more commits does not overwrite its assets. Bump the version for another release. If a pre-existing tag points to a different commit, publication fails rather than attach an installer built from different source. You can also use **Run workflow** on `main` to retry a failed release. No manual tag creation is needed.
 
-To use the already-built local installer instead, create a draft release manually for the tag, paste `docs/releases/v0.2.3.md`, and attach these two files from `dist/`:
+To use the already-built local installer instead, create a draft release manually for the tag, paste `docs/releases/v0.3.0.md`, and attach these two files from `dist/`:
 
-- `snapmark_0.2.3_amd64.deb`
-- `snapmark_0.2.3_amd64.deb.sha256`
+- `snapmark_0.3.0_amd64.deb`
+- `snapmark_0.3.0_amd64.deb.sha256`
 
 The local `dist/RELEASE_NOTES.md` is a convenience copy of the release body. Do not commit the binary installer to Git. A workflow rebuild may have a different checksum from the local build; always upload its matching checksum. GitHub supplies source archives automatically for the tag.
