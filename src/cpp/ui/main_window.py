@@ -4,7 +4,7 @@ import threading
 from PySide6.QtCore import QSize, Qt, QTimer
 from PySide6.QtGui import QAction, QIcon, QImageReader, QPixmap
 from PySide6.QtWidgets import (QApplication, QComboBox, QFileDialog, QHBoxLayout, QLabel, QListWidget,
-    QListWidgetItem, QMainWindow, QMenu, QMessageBox, QPushButton, QSystemTrayIcon, QVBoxLayout, QWidget)
+    QListWidgetItem, QMainWindow, QTabWidget, QMenu, QMessageBox, QPushButton, QSystemTrayIcon, QVBoxLayout, QWidget)
 from cpp.capture.backend import Capabilities, capabilities, capture, needs_local_region_selection
 from cpp.config import Settings, config_root, legacy_config_root, set_autostart
 from cpp.jobs import Jobs
@@ -28,12 +28,18 @@ class MainWindow(QMainWindow):
         self.capturing = False
         self.capabilities_checked = False
         self.hidden_windows = []
-        self.setWindowTitle("SnapMark — Screenshot & annotate")
+        self.setWindowTitle("SnapMark — Capture & annotate")
         self.resize(720, 740)
         self.setMinimumWidth(560)
         root = QWidget()
         root.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
-        self.setCentralWidget(root)
+        tabs = QTabWidget()
+        tabs.addTab(root, "Screenshot")
+        from cpp.video.panel import RecordingPanel
+        self.recording_panel = RecordingPanel(self)
+        self.recording_panel.editors_changed.connect(lambda:QTimer.singleShot(0,self.maybe_quit_standalone))
+        tabs.addTab(self.recording_panel, "Screen Recording")
+        self.setCentralWidget(tabs)
         layout = QVBoxLayout(root)
         layout.setContentsMargins(28, 24, 28, 20)
         layout.setSpacing(16)
@@ -144,7 +150,7 @@ class MainWindow(QMainWindow):
         if self.standalone or not self.settings.tray or not QSystemTrayIcon.isSystemTrayAvailable():
             return
         tray = QSystemTrayIcon(QApplication.windowIcon(), self)
-        tray.setToolTip("SnapMark — Screenshot & annotate")
+        tray.setToolTip("SnapMark — Capture & annotate")
         menu = QMenu(self)
         menu.addAction("Take Screenshot…", self.reveal)
         menu.addAction("Capture Region", lambda: self.start_capture("region"))
@@ -175,7 +181,7 @@ class MainWindow(QMainWindow):
         select_window = caps.session == "wayland" and not caps.targets & 8
         self.capture_buttons["window"].setText("▤   Select Window" if select_window else "▤   Active Window")
         tooltips = {
-            "full": "Capture the full desktop using its supported screenshot API",
+            "full": "Choose Screen in the system capture dialog" if caps.session=="wayland" else "Capture the full desktop using its supported screenshot API",
             "region": "Select a region using the system dialog or a frozen screenshot",
             "window": ("Open the system screenshot chooser, choose Window, then click the window to capture"
                        if caps.session == "wayland" and caps.portal_version == 2 else
@@ -214,7 +220,12 @@ class MainWindow(QMainWindow):
 
     def perform_capture(self):
         self.capture_status.setText("Waiting for screenshot permission or capture…")
-        self.hidden_windows = [w for w in [self, *self.editors] if w.isVisible()]
+        self.portal_permission_window = self.caps.session == "wayland" and not self.isVisible()
+        if self.caps.session == "wayland":
+            # GNOME permits access dialogs only for the focused application.
+            # Keep a requesting window mapped until the portal finishes.
+            self.reveal()
+        self.hidden_windows = [w for w in [self, *self.editors] if w.isVisible() and (self.caps.session != "wayland" or w is not self)]
         for window in self.hidden_windows:
             if isinstance(window, EditorWindow):
                 window.presentation_timer.stop()
@@ -238,6 +249,8 @@ class MainWindow(QMainWindow):
             window.show()
             window.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating, previous)
         self.hidden_windows = []
+        if getattr(self,"portal_permission_window",False) and self.standalone:
+            self.hide()
         self.capabilities_ready(self.caps)
         QTimer.singleShot(0, self.maybe_quit_standalone)
 
@@ -270,19 +283,22 @@ class MainWindow(QMainWindow):
             if not dialog.exec():
                 return
             image = image.copy(dialog.rectangle)
-        if self.settings.auto_editor:
+        directory = Path(self.settings.save_directory)
+        path = directory / suggested_name(self.settings.export_format)
+        auto_editor = self.settings.auto_editor
+        self.statusBar().showMessage("Saving screenshot…")
+        def work():
+            directory.mkdir(parents=True, exist_ok=True)
+            save_image(image, path)
+            return str(path)
+        def ready(saved_path):
+            self.record_saved(saved_path)
+            if auto_editor:
+                self.open_editor(image, saved_path, captured=True)
+        def failed(message):
             self.open_editor(image)
-        else:
-            directory = Path(self.settings.save_directory)
-            path = directory / suggested_name(self.settings.export_format)
-            def work():
-                directory.mkdir(parents=True, exist_ok=True)
-                save_image(image, path)
-                return str(path)
-            def failed(message):
-                self.open_editor(image)
-                self.error("Quick-save failed. Your capture is open in the editor: " + message)
-            self.jobs.run(work, self.record_saved, failed)
+            self.error("Screenshot could not be saved automatically. It is open in the editor for recovery: " + message)
+        self.jobs.run(work, ready, failed)
 
     def open_file(self):
         path, _ = QFileDialog.getOpenFileName(self, "Open image", self.settings.save_directory,
@@ -293,28 +309,45 @@ class MainWindow(QMainWindow):
     def open_path(self, path):
         if not path:
             return
+        if Path(path).suffix.lower() in ('.mp4','.webm','.mkv','.mov','.avi','.m4v'):
+            self.recording_panel.load(path)
+            return
+        if str(path).lower().endswith('.snapmark.json'):
+            from cpp.video.model import Project
+            self.recording_panel.jobs.run(lambda:Project.load(path),lambda p:self.recording_panel.editor(p,project_path=path),self.error)
+            return
         self.statusBar().showMessage("Opening image…")
         self.jobs.run(lambda: read_image(path), lambda image: self.open_editor(image, path), self.error)
 
-    def open_editor(self, image, path=None):
+    def open_editor(self, image, path=None, captured=False):
         window = EditorWindow(image, self.settings, path, parent=self)
         self.editors.add(window)
         window.saved.connect(self.record_saved)
+        window.file_deleted.connect(self.image_deleted)
+        if captured:
+            window.capture_badge_action.setVisible(True)
         window.closed.connect(self.editor_closed)
         window.present_after_capture()
         QApplication.alert(window, 3000)
-        window.statusBar().showMessage("Screenshot captured — ready to edit" if path is None else "Image opened", 5000)
+        window.statusBar().showMessage("Screenshot saved — ready to edit" if captured else "Screenshot captured — ready to edit" if path is None else "Image opened", 5000)
         self.statusBar().showMessage("Image opened", 3000)
         return window
+
+    def image_deleted(self,path):
+        try:
+            self.history.remove(path)
+            self.refresh_history()
+        except OSError as exc:
+            self.error('File deleted, but history could not be updated: '+str(exc))
 
     def editor_closed(self, window):
         self.editors.discard(window)
         QTimer.singleShot(0, self.maybe_quit_standalone)
 
     def maybe_quit_standalone(self):
-        if not self.standalone or self.editors or self.capturing:
+        if not self.standalone or self.editors or self.capturing or self.recording_panel.windows:
             return
-        if self.jobs.active:
+        if self.jobs.active or self.recording_panel.busy:
             QTimer.singleShot(100, self.maybe_quit_standalone)
             return
         QApplication.instance().quit()
@@ -411,6 +444,15 @@ class MainWindow(QMainWindow):
         QTimer.singleShot(0, self.maybe_quit_standalone)
 
     def closeEvent(self, event):
+        if self.recording_panel.busy:
+            self.recording_panel.stop()
+            event.ignore()
+            self.statusBar().showMessage("Finalizing video operation. Please close again when it finishes.", 5000)
+            return
+        for video in list(self.recording_panel.windows):
+            if not video.close():
+                event.ignore()
+                return
         if self.capturing or self.jobs.active:
             self.cancel_capture()
             event.ignore()

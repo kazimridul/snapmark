@@ -57,7 +57,7 @@ def test_portal_options_response_race_and_cleanup(app, image, tmp_path, monkeypa
     result = asyncio.run(portal_capture(mode, caps, threading.Event()))
     assert result.size() == image.size()
     assert bus.disconnected and bus.handler is None
-    assert bus.options["interactive"].value == (mode != "full")
+    assert bus.options["interactive"].value is True
     assert (bus.options["target"].value if "target" in bus.options else None) == target
 
 
@@ -149,7 +149,7 @@ def test_portal_screen_fallback_does_not_launch_native_region_selector(app, imag
     caps = Capabilities("wayland", True, True, False, "test", 3, 1)
     asyncio.run(portal_capture("region", caps, threading.Event()))
     assert bus.options["target"].value == 1
-    assert bus.options["interactive"].value is False
+    assert bus.options["interactive"].value is True
 
 
 @pytest.mark.parametrize("version,targets,available", [(1, 0, False), (2, 0, True),

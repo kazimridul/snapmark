@@ -25,7 +25,7 @@ class SettingsDialog(QDialog):
             form.setSpacing(14)
             tabs.addTab(page, title)
             labels = {"auto_editor": "Open editor after capture", "tray": "Enable system tray (when available)",
-                      "start_minimized": "Start minimized to tray", "launch_at_login": "Launch at login", "print_screen": "Use SnapMark for Print Screen (GNOME)"}
+                      "start_minimized": "Start minimized to tray", "launch_at_login": "Launch at login", "print_screen": "Override system Print Screen with SnapMark screenshots"}
             for name in names:
                 value = getattr(settings, name)
                 label = labels.get(name, name.replace("_", " ").capitalize())
@@ -73,7 +73,7 @@ class SettingsDialog(QDialog):
         page = QWidget()
         form = QFormLayout(page)
         tabs.addTab(page, "Shortcuts")
-        note = QLabel("Use SnapMark for Print Screen in General to register the desktop shortcut.\nTurn it off to restore the previous Print Screen binding.\nThe shortcuts below work inside SnapMark.")
+        note = QLabel("Print Screen uses the system screenshot and recording UI by default.\nEnable the override in General only for SnapMark screenshot capture.\nThe shortcuts below work inside SnapMark.")
         note.setWordWrap(True)
         form.addRow(note)
         self.shortcuts = {}

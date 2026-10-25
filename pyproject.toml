@@ -4,12 +4,12 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "snapmark-screenshot"
-version = "0.1.4"
-description = "A local-first Ubuntu screenshot and annotation utility"
+version = "0.2.3"
+description = "A local-first Ubuntu screenshot, recording and annotation utility"
 readme = "README.md"
 requires-python = ">=3.12"
 license = "MIT"
-dependencies = ["PySide6-Essentials>=6.8,<7", "Pillow>=11,<13", "dbus-next>=0.2.3,<1", "python-xlib>=0.33,<1"]
+dependencies = ["PySide6-Essentials>=6.8,<7", "PySide6-Addons>=6.8,<7", "Pillow>=11,<13", "dbus-next>=0.2.3,<1", "python-xlib>=0.33,<1"]
 
 [project.optional-dependencies]
 dev = ["pytest>=8", "build>=1"]

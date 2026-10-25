@@ -181,3 +181,25 @@ def test_standalone_file_error_does_not_show_main(app, monkeypatch, tmp_path):
     wait_for(app, lambda: bool(exits))
     assert messages and not window.isVisible()
     window.close()
+
+def test_capture_is_saved_before_editor_and_closes_cleanly(app,image,monkeypatch,tmp_path):
+    window=make_main(app,image,monkeypatch,tmp_path)
+    window.start_capture('full')
+    wait_for(app,lambda:len(window.editors)==1 and not window.jobs.active)
+    editor=next(iter(window.editors))
+    assert editor.path and Path(editor.path).is_file()
+    assert not editor.fresh and editor.document.undo.isClean()
+    def unexpected(*a):
+        raise AssertionError('Saved, unedited capture must close without a prompt')
+    monkeypatch.setattr('cpp.ui.editor_window.QMessageBox.question',unexpected)
+    editor.close()
+    close_main(app,window)
+
+def test_wayland_capture_keeps_requesting_window_visible_for_permission(app,image,monkeypatch,tmp_path):
+    window=make_main(app,image,monkeypatch,tmp_path)
+    window.capabilities_ready(Capabilities('wayland',True,True,True,'Portal',2))
+    window.start_capture('full')
+    assert window.isVisible()
+    assert window not in window.hidden_windows
+    wait_for(app,lambda:len(window.editors)==1 and not window.jobs.active)
+    close_main(app,window)

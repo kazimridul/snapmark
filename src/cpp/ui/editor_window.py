@@ -1,7 +1,7 @@
 from dataclasses import replace
 from pathlib import Path
 from PySide6.QtCore import QEvent, QSize, Qt, QTimer, Signal
-from PySide6.QtGui import QAction, QActionGroup, QColor, QKeySequence
+from PySide6.QtGui import QAction, QActionGroup, QColor, QKeySequence, QImageReader
 from PySide6.QtWidgets import (QCheckBox, QColorDialog, QComboBox, QFileDialog, QHBoxLayout,
     QInputDialog, QLabel, QMainWindow, QMessageBox, QPushButton, QSizePolicy, QSpinBox, QToolBar, QVBoxLayout, QWidget)
 from cpp.clipboard import copy_image
@@ -30,6 +30,7 @@ TOOLS = [("select", "Select / move", "Select and drag annotations; Delete remove
 
 class EditorWindow(QMainWindow):
     saved = Signal(str)
+    file_deleted = Signal(str)
     closed = Signal(object)
 
     def __init__(self, image, settings, path=None, parent=None):
@@ -69,6 +70,8 @@ class EditorWindow(QMainWindow):
         self.action("Save", self.save, settings.shortcuts["save"], "save", "Save the edited image")
         self.action("Save As…", lambda: self.save(True), settings.shortcuts["save_as"], "save_as", "Save to a new file")
         self.action("Copy", self.copy, settings.shortcuts["copy"], "copy", "Copy the edited image to the clipboard")
+        self.action("File properties", self.file_properties, icon_kind="info", purpose="Show saved image properties")
+        self.action("Delete from storage…", self.delete_from_storage, icon_kind="delete", purpose="Delete the saved image after confirmation")
         self.toolbar.addSeparator()
         self.action("Zoom out", lambda: self.canvas.zoom(1/1.2), "Ctrl+-", "zoom_out", "Zoom out of the image")
         self.action("Zoom in", lambda: self.canvas.zoom(1.2), "Ctrl++", "zoom_in", "Zoom into the image")
@@ -449,6 +452,29 @@ class EditorWindow(QMainWindow):
             except Exception as exc:
                 self.operation_failed(str(exc))
         self.jobs.run(lambda: composite(state.base, state.annotations), ready, self.operation_failed)
+
+    def file_properties(self):
+        from cpp.ui.media_file import MediaFileDialog
+        image=self.document.state.base
+        details={'Canvas dimensions':f'{image.width()} × {image.height()} px','Edits':'Unsaved changes' if self.fresh or not self.document.undo.isClean() else 'Saved'}
+        if self.path:
+            size=QImageReader(str(self.path)).size()
+            if size.isValid():
+                details['Saved image dimensions']=f'{size.width()} × {size.height()} px'
+        dialog=MediaFileDialog(self.path,details,self)
+        dialog.deleted.connect(self.storage_deleted)
+        dialog.exec()
+    def storage_deleted(self,path):
+        self.fresh=False
+        self.document.undo.setClean()
+        self.file_deleted.emit(path)
+        QTimer.singleShot(0,self.close)
+    def delete_from_storage(self):
+        if self.busy or self.jobs.active:
+            return
+        from cpp.ui.media_file import delete_file
+        if delete_file(self,self.path,'The editor will close and any unsaved edits will be discarded.'):
+            self.storage_deleted(self.path)
 
     def closeEvent(self, event):
         self.presentation_timer.stop()

@@ -43,7 +43,8 @@ class Settings:
     delay: int = 0
     start_minimized: bool = False
     launch_at_login: bool = False
-    print_screen: bool = True
+    print_screen: bool = False
+    native_capture_shortcut: bool = True
     tray: bool = True
     theme: str = "system"
     shortcuts: dict[str, str] = field(default_factory=lambda: dict(DEFAULT_SHORTCUTS))
@@ -65,6 +66,8 @@ class Settings:
             current = getattr(defaults, f.name)
             if type(value) is type(current):
                 setattr(defaults, f.name, value)
+        if "native_capture_shortcut" not in data:
+            defaults.print_screen = False
         defaults.validate()
         return defaults
 

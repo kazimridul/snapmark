@@ -33,6 +33,7 @@ def main():
         run(sys.executable, "-m", "PyInstaller", "--noconfirm", "--clean", "--onedir",
             "--name", "snapmark", "--paths", ROOT / "src",
             "--add-data", f"{ROOT / 'src/cpp/assets'}:cpp/assets",
+            "--add-data", f"{ROOT / 'src/cpp/video/gst_helper.py'}:cpp/video",
             "--collect-submodules", "dbus_next", "--collect-submodules", "Xlib",
             "--distpath", work / "dist", "--workpath", work / "build",
             "--specpath", work, ROOT / "src/cpp/__main__.py")
@@ -52,7 +53,7 @@ def main():
             shutil.copy2(source, target)
         notices = stage / "usr/share/doc/snapmark/third-party"
         notices.mkdir(parents=True)
-        packages = ["PySide6-Essentials", "shiboken6", "Pillow", "dbus-next", "python-xlib", "six"]
+        packages = ["PySide6-Addons", "PySide6-Essentials", "shiboken6", "Pillow", "dbus-next", "python-xlib", "six"]
         manifest = {"version": version, "architecture": arch, "build_os": platform.freedesktop_os_release(),
                     "glibc_minimum": libc, "python": sys.version, "dependencies": {}}
         for name in packages:
@@ -76,11 +77,11 @@ Priority: optional
 Architecture: {arch}
 Maintainer: SnapMark maintainers <snapmark@localhost>
 Installed-Size: {size}
-Depends: libglib2.0-bin, libc6 (>= {libc}), libegl1, libgl1, libdbus-1-3, libfontconfig1, libfreetype6, libglib2.0-0t64, libx11-6, libx11-xcb1, libxext6, libxrender1, libxi6, libxkbcommon0, libxkbcommon-x11-0, libxcb1, libxcb-cursor0, libxcb-icccm4, libxcb-image0, libxcb-keysyms1, libxcb-randr0, libxcb-render0, libxcb-render-util0, libxcb-shape0, libxcb-shm0, libxcb-sync1, libxcb-xfixes0, libxcb-xinerama0, libxcb-xkb1, libwayland-client0, libwayland-cursor0, libwayland-egl1
+Depends: ffmpeg, python3-gi, gir1.2-gstreamer-1.0, gstreamer1.0-pipewire, gstreamer1.0-plugins-base, gstreamer1.0-plugins-good, pulseaudio-utils, libglib2.0-bin, libc6 (>= {libc}), libegl1, libgl1, libdbus-1-3, libfontconfig1, libfreetype6, libglib2.0-0t64, libx11-6, libx11-xcb1, libxext6, libxrender1, libxi6, libxkbcommon0, libxkbcommon-x11-0, libxcb1, libxcb-cursor0, libxcb-icccm4, libxcb-image0, libxcb-keysyms1, libxcb-randr0, libxcb-render0, libxcb-render-util0, libxcb-shape0, libxcb-shm0, libxcb-sync1, libxcb-xfixes0, libxcb-xinerama0, libxcb-xkb1, libwayland-client0, libwayland-cursor0, libwayland-egl1
 Recommends: xdg-desktop-portal, xdg-desktop-portal-gnome
-Description: Local screenshot capture and annotation
- Capture screenshots, draw annotations, crop, blur, save and copy images.
- Includes its Python and Qt runtime. Uses the host desktop screenshot portal.
+Description: Local screenshots, screen recording and annotation
+ Capture screenshots and video, annotate, trim, crop, blur and export locally.
+ Includes Python and Qt Multimedia. Uses desktop screenshot and ScreenCast portals.
 """)
         run("dpkg-deb", "--root-owner-group", "-Zxz", "--build", stage, artifact)
     digest = hashlib.sha256(artifact.read_bytes()).hexdigest()

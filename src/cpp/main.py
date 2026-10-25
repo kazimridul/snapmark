@@ -13,8 +13,8 @@ from cpp.ui.theme import apply_theme
 
 
 def main(argv=None):
-    parser = argparse.ArgumentParser(description="SnapMark — Ubuntu screenshot and quick image editor")
-    parser.add_argument("image", nargs="?", help="Image to open")
+    parser = argparse.ArgumentParser(description="SnapMark — Ubuntu screenshots, recording and annotation")
+    parser.add_argument("image", nargs="?", help="Image, video or SnapMark video project to open")
     parser.add_argument("--capture", choices=["full", "region", "window"], help="Start capture after launch")
     parser.add_argument("--minimized", action="store_true", help="Start in the system tray if available")
     parser.add_argument("--version", action="version", version=f"SnapMark {__version__}")
@@ -32,13 +32,13 @@ def main(argv=None):
     window = MainWindow(settings, standalone=bool(args.image or args.capture))
     if not window.standalone and not ((args.minimized or settings.start_minimized) and window.tray_icon):
         window.show()
-    if not window.standalone and settings.print_screen:
+    if not window.standalone:
         from cpp.desktop_shortcut import set_print_screen
         def shortcut_failed(message):
             logging.warning(message)
             window.statusBar().showMessage(message, 15000)
-        window.jobs.run(lambda: set_print_screen(True),
-                        lambda _: window.statusBar().showMessage("Print Screen opens SnapMark", 5000), shortcut_failed)
+        window.jobs.run(lambda: set_print_screen(settings.print_screen),
+                        lambda _: window.statusBar().showMessage("Print Screen opens SnapMark" if settings.print_screen else "Print Screen uses the system capture and recording UI", 5000), shortcut_failed)
     if args.image:
         QTimer.singleShot(0, lambda: window.open_path(args.image))
     if args.capture:

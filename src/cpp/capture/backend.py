@@ -113,7 +113,9 @@ async def portal_capture(mode: str, caps: Capabilities, cancelled: threading.Eve
             body=["type='signal',interface='org.freedesktop.portal.Request',member='Response'"]))
         if reply.message_type == MessageType.ERROR:
             raise RuntimeError("Cannot subscribe to screenshot portal responses.")
-        interactive = mode != "full" and not (mode == "region" and needs_local_region_selection(caps))
+        # A non-interactive full-screen request can be denied before a consent UI
+        # is shown. Always use the desktop's user-authorized flow (v2+).
+        interactive = caps.portal_version >= 2
         options = {"handle_token": Variant("s", token), "interactive": Variant("b", interactive)}
         if caps.portal_version >= 3:
             target = 1 if mode == "full" else 4 if mode == "region" and caps.targets & 4 else 1
@@ -137,7 +139,7 @@ async def portal_capture(mode: str, caps: Capabilities, cancelled: threading.Eve
         if code == 1:
             raise CaptureCancelled("Capture cancelled in the system dialog.")
         if code != 0 or "uri" not in result:
-            raise RuntimeError("The desktop portal could not capture a screenshot (permission denied or backend failure).")
+            raise RuntimeError("The desktop did not authorize or complete the screenshot. Approve the system capture dialog and select Screen for a full screenshot. If permission was denied previously, check your desktop screenshot permissions.")
         uri = urlparse(result["uri"].value)
         if uri.scheme != "file" or uri.netloc not in ("", "localhost"):
             raise RuntimeError("The portal returned an unsupported image location.")

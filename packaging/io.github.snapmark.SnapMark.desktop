@@ -2,12 +2,12 @@
 Type=Application
 Version=1.0
 Name=SnapMark
-Comment=Capture screenshots and annotate images locally
+Comment=Capture screenshots, record your screen and annotate locally
 Exec=snapmark %f
 Icon=io.github.snapmark.SnapMark
 Terminal=false
 Categories=Graphics;Qt;
-MimeType=image/png;image/jpeg;image/webp;
+MimeType=image/png;image/jpeg;image/webp;video/mp4;video/webm;video/x-matroska;video/quicktime;
 StartupNotify=true
 Actions=Full;Region;
 

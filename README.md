@@ -1,10 +1,10 @@
-# SnapMark — Ubuntu screenshots & quick annotation
+# SnapMark — Ubuntu screenshots, recording & annotation
 
 A native Python/Qt application for taking screenshots, highlighting details, drawing arrows, cropping, and saving or copying edited images. All image processing is local. No accounts, uploads, telemetry, or root privileges are required to run it.
 
 ## Run
 
-Target: Ubuntu 24.04 or newer, Python 3.12+, GNOME on Wayland or X11. Automated testing currently uses Ubuntu 25.10 / Python 3.13. Real desktop capture and multi-monitor compatibility must be verified using [the manual checklist](docs/testing.md); this is version 0.1.4.
+Target: Ubuntu 24.04 or newer, Python 3.12+, GNOME on Wayland or X11. Automated testing currently uses Ubuntu 25.10 / Python 3.13. Real desktop capture and multi-monitor compatibility must be verified using [the manual checklist](docs/testing.md); this is version 0.2.3.
 
 ```bash
 cd /path/to/snapmark
@@ -19,10 +19,10 @@ Python virtual environment support and Qt's system libraries must be present. Ub
 
 ## Ubuntu installer
 
-The bundled **0.1.4 .deb targets Ubuntu 25.10 x86-64**, the build host. It includes Python, Qt, and the application dependencies; no development environment is needed. Older Ubuntu releases need a separate build on the oldest supported system.
+The bundled **0.2.3 .deb targets Ubuntu 25.10 x86-64**, the build host. It includes Python, Qt, and the application dependencies; no development environment is needed. Older Ubuntu releases need a separate build on the oldest supported system.
 
 ```bash
-sudo apt install ./dist/snapmark_0.1.4_amd64.deb
+sudo apt install ./dist/snapmark_0.2.3_amd64.deb
 snapmark
 ```
 
@@ -53,16 +53,16 @@ Blur and pixelation are configurable visual obfuscation, not guaranteed irrevers
 | Wayland portal v3 | Advertised Screen target | Advertised Area target, otherwise local selection of returned screen image | Active Window if advertised, otherwise Select Window if advertised |
 | No usable display/portal | Disabled with an explanation | Disabled | Disabled; existing images can still be edited |
 
-The portal may ask for permission or show its own UI. It controls monitor coverage, scaling, and selection behavior; SnapMark does not read the Wayland framebuffer. Cancellations do not become fake screenshots, and failures never silently fall back to X11. X11 captures the full display rather than pretending to support monitor-specific native coordinate mappings. Multi-monitor/mixed-scale results need real hardware verification. Capture windows are hidden before requesting the screenshot. On return, restored windows do not request focus; the new editor requests activation and stays above the SnapMark main window. A green Screenshot captured badge remains until the first edit. Wayland compositors can still decline foreground activation when no valid user-input token exists.
+The portal may ask for permission or show its own UI. It controls monitor coverage, scaling, and selection behavior; SnapMark does not read the Wayland framebuffer. Cancellations do not become fake screenshots, and failures never silently fall back to X11. X11 captures the full display rather than pretending to support monitor-specific native coordinate mappings. Multi-monitor/mixed-scale results need real hardware verification. On X11, capture windows are hidden before taking the screenshot. On Wayland, SnapMark keeps the requesting window visible/focused and uses the system permission/selection dialog; choose Screen for a full screenshot on older portals. On return, restored windows do not request focus; the new editor requests activation and stays above the SnapMark main window. A green Screenshot captured badge remains until the first edit. Wayland compositors can still decline foreground activation when no valid user-input token exists.
 
-Capture shortcuts (default Ctrl+Shift+F/R/W) and capture-menu Ctrl+Shift+S work in the main window. Editor defaults include Ctrl+S, Ctrl+Shift+S (Save As), Ctrl+C, Ctrl+Z, and Ctrl+Y. Customize these in Settings. On Ubuntu GNOME, the first normal launch registers **Print Screen → SnapMark region capture** for your user. It preserves the previous binding and other modified screenshot shortcuts. Disable **Use SnapMark for Print Screen (GNOME)** in Settings → General to restore the previous binding. Do this before uninstalling the app. The shortcut points to this installation, so keep it in place. Other desktops require a custom keyboard shortcut for `snapmark --capture region`. Image-file and `--capture` launches show only the editor; cancelled or failed captures exit cleanly. Each invocation creates an application process; no single-instance service is installed.
+Capture shortcuts (default Ctrl+Shift+F/R/W) and capture-menu Ctrl+Shift+S work in the main window. Editor defaults include Ctrl+S, Ctrl+Shift+S (Save As), Ctrl+C, Ctrl+Z, and Ctrl+Y. Customize these in Settings. Print Screen keeps Ubuntu’s native screenshot/recording UI by default. SnapMark restores its previous shortcut override on upgrade. While SnapMark is open, completed new videos in Videos/Screencasts (or Videos on older desktops) can open automatically in its editor. The optional **Override system Print Screen with SnapMark screenshots** setting restores the former screenshot-only shortcut behavior. Other desktops can use their own native capture shortcut or a custom shortcut for `snapmark --capture region`. Image-file and `--capture` launches show only the editor; cancelled or failed captures exit cleanly. Each invocation creates an application process; no single-instance service is installed.
 
 
 ## Settings, recent files, and tray
 
 Settings include output folder/format, annotation defaults, privacy strength, capture delay, automatic editor opening, theme, tray, login startup, and application shortcuts. They are validated and stored under Qt's XDG app configuration location, normally `~/.config/SnapMark/SnapMark/`. Existing settings/history from `~/.config/cpp-screenshot/cpp/` are read automatically when no new SnapMark data exists. Invalid JSON falls back to defaults. History stores at most 30 paths locally. Removing a history entry preserves the image file.
 
-Turning off automatic editing saves captures to the configured screenshots folder and adds them to Recent. A failed quick-save opens the captured image in the editor so it can be recovered. Tray support depends on the desktop; GNOME may require its AppIndicator extension. Hide to tray is explicit. Closing the main window or choosing Quit exits after handling unsaved editors; closing never secretly leaves a tray process behind. Login startup is opt-in and uses the current Python installation, which must remain at the same path.
+Every completed screenshot is saved to the configured screenshots folder and added to Recent before the optional editor opens. An unedited saved capture closes without an unsaved warning. A failed automatic save opens the captured image for recovery. Both editors offer File properties and confirmed Delete from storage actions. Tray support depends on the desktop; GNOME may require its AppIndicator extension. Hide to tray is explicit. Closing the main window or choosing Quit exits after handling unsaved editors; closing never secretly leaves a tray process behind. Login startup is opt-in and uses the current Python installation, which must remain at the same path.
 
 ## Test and package
 
@@ -75,3 +75,14 @@ QT_QPA_PLATFORM=offscreen .venv/bin/python -m pytest -q
 The desktop installer creates the launcher and SVG icon in your XDG user data directory. It records the current virtual environment path, so rerun it if you move the project. See [the verification record](docs/verification.md), [packaging](packaging/README.md), [architecture](docs/architecture.md), [development](docs/development.md), and [manual verification](docs/testing.md).
 
 Uninstall the launcher with `.venv/bin/python tools/install_desktop.py --uninstall`, disable Launch at login in Settings, then uninstall the Python package with `.venv/bin/python -m pip uninstall snapmark-screenshot`. Your saved images and local settings/history are preserved.
+
+## Screen recording and video editing — 0.2.3
+
+The **Screen Recording** tab adds portal/PipeWire recording on Wayland and full
+screen/region recording on X11, optional selected microphone/system audio,
+pause/resume, MP4 output, integrated playback, trim/split/crop, timed highlights,
+drawing/text/privacy overlays, editable JSON projects and separate MP4 export.
+See [setup, usage, implementation and verification limits](docs/video.md).
+Wayland area recording asks you to share a monitor, then select a pixel-accurate area before recording starts.
+Actual desktop recording and installation verification are still pending; the
+synthetic capture/export tests do not establish full desktop compatibility.

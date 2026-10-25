@@ -1,10 +1,23 @@
 """Consistent vector tool icons, independent of installed icon themes or fonts."""
 from PySide6.QtCore import QByteArray, Qt
-from PySide6.QtGui import QIcon, QPainter, QPalette, QPixmap
+from PySide6.QtGui import QIcon, QCursor, QColor, QPainter, QPalette, QPixmap
 from PySide6.QtSvg import QSvgRenderer
 from PySide6.QtWidgets import QApplication
 
 PATHS = {
+    "info": '<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7h.01"/>',
+    "fullscreen": '<path d="M8 3H3v5M16 3h5v5M21 16v5h-5M8 21H3v-5"/>',
+    "split": '<path d="M12 3v18M4 7h4v10H4M20 7h-4v10h4"/><path d="m10 12 2-2 2 2"/>',
+    "delete": '<path d="M3 6h18M9 6V3h6v3M6 6l1 15h10l1-15M10 10v7M14 10v7"/>',
+    "play": '<path d="m7 4 14 8-14 8Z"/>',
+    "pause": '<path d="M8 4v16M16 4v16"/>',
+    "stop": '<rect x="5" y="5" width="14" height="14" rx="1"/>',
+    "previous": '<path d="M5 4v16M19 4 7 12l12 8Z"/>',
+    "next": '<path d="M19 4v16M5 4l12 8-12 8Z"/>',
+    "back": '<path d="m12 5-8 7 8 7M21 5l-8 7 8 7"/>',
+    "forward": '<path d="m3 5 8 7-8 7M12 5l8 7-8 7"/>',
+    "volume": '<path d="M3 9h4l5-5v16l-5-5H3ZM16 8a6 6 0 0 1 0 8M19 4a11 11 0 0 1 0 16"/>',
+    "muted": '<path d="M3 9h4l5-5v16l-5-5H3ZM16 9l6 6M22 9l-6 6"/>',
     "select": '<path d="m5 3 14 9-7 1-3 7Z"/><path d="m12 13 5 7"/>',
     "pen": '<path d="m4 16-1 5 5-1L20 8a2.1 2.1 0 0 0-4-4Z"/><path d="m14 6 4 4M4 16l4 4"/>',
     "highlighter": '<path d="m6 14 8-10 6 5-8 10Z"/><path d="m6 14-2 5 3 2 5-2M3 22h17M12 7l6 5"/>',
@@ -45,3 +58,25 @@ def tool_icon(kind: str) -> QIcon:
         pixmap.setDevicePixelRatio(2)
         icon.addPixmap(pixmap, mode, state)
     return icon
+
+
+def tool_cursor(kind: str) -> QCursor:
+    """Visible tool glyph plus a precise crosshair hotspot on any video frame."""
+    if kind == 'select':
+        return QCursor(Qt.CursorShape.ArrowCursor)
+    pixmap = QPixmap(36,36)
+    pixmap.fill(Qt.GlobalColor.transparent)
+    painter = QPainter(pixmap)
+    painter.setPen(QColor('#ffffff'))
+    painter.drawLine(0,2,6,2)
+    painter.drawLine(2,0,2,6)
+    painter.setPen(QColor('#111111'))
+    painter.drawPoint(2,2)
+    painter.setBrush(QColor('#ececf0'))
+    painter.drawRoundedRect(8,8,27,27,5,5)
+    body=PATHS[kind].replace('{color}', '#17181f')
+    svg=f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#17181f" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">{body}</svg>'
+    from PySide6.QtCore import QRectF
+    QSvgRenderer(QByteArray(svg.encode())).render(painter,QRectF(10,10,24,24))
+    painter.end()
+    return QCursor(pixmap,2,2)
